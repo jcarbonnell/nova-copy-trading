@@ -31,7 +31,7 @@ Each claim maps to something you can run or open. Status is `planned` until its 
 |---|---|---|---|
 | C1 | No server and no storage provider sees a journal entry in plaintext or its key. Entries are encrypted in the agent's own process before upload; NOVA stores ciphertext; the decryption key is released by NOVA's TEE only to on-chain group members. | `npm test` (encryption and hash checks); on-chain record links in [Live run](#live-run) | planned |
 | C2 | An agent spends only what its owner signed. The follower can pay only the listing in its owner's policy, and a copy above its per-trade limit is refused. | `npm run demo:mock` (refusal beats); live refusal records | planned |
-| C3 | Payment is what grants access. The seller's agent admits a follower only after checking the payment on chain (final, successful, from the payer to the seller, exact asset and amount, never used before), and access always goes to the paying account. | `npm test` (payment-verification harness); live payment and admission links | planned |
+| C3 | Payment is what grants access. The seller's agent admits a follower only after checking the payment on chain (final, successful, from the payer to the seller's proceeds account, exact asset and amount, never used before), and access always goes to the paying account. | `npm test` (payment-verification harness); live payment and admission links | planned |
 | C4 | The follower verifies what it bought: the listing's fingerprint (a root over the entries' on-chain hashes), each decrypted entry's SHA-256, and the P&L recomputed from the journal against the public curve. | `npm test` (feed-verification harness); `npm run demo:mock` | planned |
 | C5 | Access ends cleanly. At period end the seller revokes the follower, NOVA rotates the group key, and the follower's next read is refused. | live revocation link and refused read | planned |
 | C6 | Every agent write is signed and paid by the agent's own NEAR account. NOVA signs nothing for it and holds no agent key. | live transaction links (signer = the agent's account) | planned |
@@ -89,7 +89,7 @@ The hackathon window opened on 2026-10-19 (NEAR HACKATHON rule Q-001).
 | Piece | Origin | Date | In window |
 |---|---|---|---|
 | NOVA contract, MCP server, Shade TEE agent, `nova-sdk-js` | [jcarbonnell/nova](https://github.com/jcarbonnell/nova) | 2025–2026; self-custodial wallet mode (SDK 1.4.0, contract v0.3.7–v0.3.9) 2026-10-21 to 10-29 | partly |
-| `src/vendor/nova-agent-connect.ts` and its harness | `nova/nova-agent-connect` @ `bf451a5` | 2026-10-29 to 10-30 | yes |
+| `src/vendor/nova-agent-connect.ts`, its harness and mutation script | `nova/nova-agent-connect` @ `ecd5fd4` | 2026-10-29 to 10-30 | yes |
 | Payment observation (event shape, memo, refusals) | `nova/paid-handoff` | 2026-10-19 to 10-29 | yes |
 | Everything else in this repository | this repository | from 2026-11-02 | yes |
 
