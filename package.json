@@ -13,7 +13,8 @@
     "test:vendor": "cd src/vendor && tsx test-nova-agent-connect.ts && node mutate-nova-agent-connect.mjs",
     "test:payment": "tsx test/verify-payment.test.ts && node test/mutate-verify-payment.mjs",
     "test:chain": "tsx test/near-chain.test.ts && node test/mutate-near-chain.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain"
+    "test:journal": "tsx test/journal.test.ts && node test/mutate-journal.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
