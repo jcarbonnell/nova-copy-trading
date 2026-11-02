@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# secrets: never committed (.env.example is the only env file in the repo)
+.env
+.env.*
+!.env.example
+
+# Agent Connect state, as written by nova/paid-handoff and the smokes (no secrets in the
+# last three, but they are per-operator state, not source)
+.grant-token
+.grant-token.new
+.nova-agent-session
+aa-state.json
+.nova-pending.json
+native-upload-state.json
+
+# live runs and local outputs (published evidence goes in docs/ on purpose, never from here)
+runs/
+*.log
+
+# leftovers from the vendor mutation script if a run is interrupted
+src/vendor/mutant-*.ts
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
