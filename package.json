@@ -22,7 +22,8 @@
     "test:ledger": "tsx test/ledger-file.test.ts && node test/mutate-ledger-file.mjs",
     "test:reader": "tsx test/nova-reader.test.ts && node test/mutate-nova-reader.mjs",
     "test:members": "tsx test/member-ops.test.ts && node test/mutate-member-ops.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members"
+    "test:writer": "tsx test/journal-writer.test.ts && node test/mutate-journal-writer.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
