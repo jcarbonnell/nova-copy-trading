@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVA Copy-Trading viewer</title>
+<style>
+  :root {
+    --bg: #0d1014; --panel: #151a21; --line: #232b35; --text: #e6eaef; --muted: #8b96a3; --faint: #5b6673;
+    --ok: #3fcf8e; --warn: #f0b429; --bad: #f26d6d; --accent: #7aa2ff; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: .2px; }
+  header .mode { font: 12px var(--mono); color: var(--warn); border: 1px solid #5a4510; padding: 2px 8px; border-radius: 4px; }
+  header .spacer { flex: 1; }
+  header .clock { font: 13px var(--mono); color: var(--muted); }
+  .controls { display: flex; gap: 6px; align-items: center; }
+  .controls button { background: #1d242d; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  .controls button:hover { border-color: var(--accent); }
+  .controls .pos { font: 12px var(--mono); color: var(--muted); min-width: 64px; text-align: right; }
+  .caption { padding: 12px 22px; font-size: 18px; border-bottom: 1px solid var(--line); min-height: 52px; }
+  .caption .n { color: var(--accent); font: 600 14px var(--mono); margin-right: 10px; }
+  main { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 16px; padding: 16px 22px; height: calc(100vh - 166px); min-height: 560px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; overflow: hidden; min-height: 0; display: flex; flex-direction: column; }
+  section > div, section > ul { flex: 1; min-height: 0; overflow: auto; }
+  #feed { display: flex; flex-direction: column; overflow: hidden; } #feed .scroll { flex: 1; min-height: 0; overflow: auto; }
+  section h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; display: flex; gap: 8px; align-items: center; }
+  section h2 .tag { font: 11px var(--mono); text-transform: none; letter-spacing: 0; padding: 1px 7px; border-radius: 4px; border: 1px solid var(--line); color: var(--faint); }
+  .kv { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 4px 14px; font-size: 14px; margin-top: 10px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; font-family: var(--mono); font-size: 13px; overflow-wrap: anywhere; }
+  .big { font-size: 30px; font-weight: 600; letter-spacing: -.5px; } .big small { font-size: 14px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+  .note { color: var(--faint); font-size: 12px; margin-top: 6px; }
+  svg.curve { width: 100%; height: 104px; display: block; margin-top: 8px; }
+  .locked { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 200px; color: var(--muted); gap: 10px; text-align: center; }
+  .locked .pad { font-size: 40px; filter: grayscale(1); opacity: .7; }
+  .checks { display: flex; gap: 18px; margin-bottom: 12px; flex-wrap: wrap; }
+  .checks span { color: var(--ok); font-weight: 600; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--faint); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); }
+  td { padding: 6px; border-bottom: 1px solid #1b2129; vertical-align: top; }
+  td.mono { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  td.why { color: var(--muted); font-size: 12px; }
+  tr.new td { animation: flash 1.2s ease-out; }
+  tr.sealed td { color: var(--faint); font-style: italic; }
+  @keyframes flash { from { background: #1f3326; } to { background: transparent; } }
+  .buy { color: var(--ok); } .sell { color: var(--accent); }
+  ul.log { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  ul.log li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; padding: 7px 0; border-bottom: 1px solid #1b2129; }
+  ul.log li .t { font: 12px var(--mono); color: var(--faint); }
+  ul.log li .d { color: var(--muted); font-size: 12px; font-family: var(--mono); overflow-wrap: anywhere; }
+  .i-ok { color: var(--ok); } .i-warn { color: var(--warn); } .i-bad { color: var(--bad); } .i-info { color: var(--accent); }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  .empty { color: var(--faint); font-size: 14px; padding: 30px 0; text-align: center; }
+  ul.log li.empty { display: block; border: 0; }
+  .card { position: fixed; inset: 60px 0 0 0; background: rgba(5, 7, 10, .82); display: flex; align-items: center; justify-content: center; }
+  .card[hidden] { display: none; }
+  .card > div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 34px; width: min(720px, 92vw); }
+  .card h3 { margin: 0 0 16px; font-size: 22px; }
+  .card ul { margin: 0 0 18px; padding-left: 20px; } .card li { margin: 6px 0; }
+  .card .label { color: var(--warn); font-weight: 600; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: #0a0c10; border-top: 1px solid var(--line); padding: 10px 22px; font-size: 13px; color: var(--muted); display: flex; gap: 16px; }
+  footer b { color: var(--text); font-weight: 600; }
+  .errors { color: var(--bad); font: 12px var(--mono); padding: 0 22px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; grid-template-rows: none; height: auto; padding-bottom: 70px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>NOVA Copy-Trading</h1>
+  <span class="mode" id="mode" hidden>MOCK MODE</span>
+  <span class="spacer"></span>
+  <span class="clock" id="clock"></span>
+  <div class="controls" id="controls">
+    <button id="restart" title="Back to the start">⏮</button>
+    <button id="back" title="One step back">◀</button>
+    <button id="play">▶ Replay</button>
+    <button id="fwd" title="One step forward">▶︎|</button>
+    <button id="end" title="Jump to the end">⏭</button>
+    <span class="pos" id="pos"></span>
+  </div>
+</header>
+<div class="caption" id="caption"></div>
+<div class="errors" id="errors"></div>
+<main>
+  <section>
+    <h2>Public listing <span class="tag">anyone can see this</span></h2>
+    <div id="listing"></div>
+  </section>
+  <section>
+    <h2>Trade feed <span class="tag">encrypted in NOVA · follower's view</span></h2>
+    <div id="feed"></div>
+  </section>
+  <section>
+    <h2>Copies and guardrails <span class="tag">follower's policy</span></h2>
+    <ul class="log" id="copies"></ul>
+  </section>
+  <section>
+    <h2>Ledger <span class="tag">payment, access, journal</span></h2>
+    <ul class="log" id="ledger"></ul>
+  </section>
+</main>
+<div class="card" id="card" hidden><div>
+  <h3>On record</h3>
+  <ul id="card-list"></ul>
+  <div class="label">Technical demo, not investment advice.</div>
+  <div class="note" id="card-note"></div>
+</div></div>
+<footer><b>Technical demo, not investment advice.</b><span id="footnote">Simulated trades.</span></footer>
+
+<script>
+'use strict';
+// Every value from the state is put on the page with textContent, never as HTML.
+const $ = (id) => document.getElementById(id);
+const el = (tag, attrs = {}, ...kids) => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else e.setAttribute(k, v); }
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+};
+const short = (h, n = 10) => (typeof h === 'string' && h.length > n + 2 ? `${h.slice(0, n)}…` : String(h ?? ''));
+const usdc = (a) => (Number(a) / 1e6).toLocaleString('en-US', { maximumFractionDigits: 6 });
+const near = (y) => (Number(BigInt(y) / 10n ** 15n) / 1e9).toLocaleString('en-US', { maximumFractionDigits: 6 });
+const hhmm = (ms) => new Date(ms).toISOString().slice(11, 16) + ' UTC';
+const nsToMs = (ns) => Number(BigInt(ns) / 1_000_000n);
+const params = new URLSearchParams(location.search);
+
+let S = null;          // the last /api/state
+let steps = [];        // distinct event times, in order
+let cursor = -1;       // index into steps; -1 = before anything
+let following = true;  // live: stay at the end as new events arrive
+let timer = null;
+const CLOSING = Number.MAX_SAFE_INTEGER;
+const PACE_MS = Number(params.get('pace') ?? 2600);
+
+function timeline(s) {
+  const all = [
+    ...s.seller.events.map((e) => ({ ...e, src: 'seller' })),
+    ...s.follower.events.map((e) => ({ ...e, src: 'follower' })),
+    ...s.hostile.events.map((e) => ({ ...e, src: 'hostile' })),
+  ].filter((e) => typeof e.at === 'number');
+  // Same instant: the follower's payment comes before the seller's check of it, and an admission before the feed.
+  const rank = { listing_approved: 0, payment_sent: 1, payment_settled: 2, payment_verified: 3, member_admitted: 4, admitted: 5, feed_verified: 6 };
+  all.sort((a, b) => a.at - b.at || (rank[a.kind] ?? 9) - (rank[b.kind] ?? 9));
+  return all;
+}
+
+async function load() {
+  const r = await fetch('/api/state', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`state: HTTP ${r.status}`);
+  S = await r.json();
+  S.events = timeline(S);
+  const before = steps.length;
+  steps = [...new Set(S.events.map((e) => e.at))];
+  if (steps.length) steps.push(CLOSING);   // the last step is the closing card
+  if (following || cursor >= steps.length) cursor = steps.length - 1;
+  if (before === 0 && params.has('step')) { cursor = Math.min(steps.length - 1, Number(params.get('step'))); following = false; }
+  render();
+}
+
+function upTo() {
+  const t = cursor < 0 ? -Infinity : steps[cursor];
+  return S.events.filter((e) => e.at <= t);
+}
+
+function caption(seen) {
+  if (steps[cursor] === CLOSING) return ['7', 'Every step above is on record: the payment on chain, the journal in NOVA, each check reproducible.'];
+  const has = (k, src) => seen.some((e) => e.kind === k && (!src || e.src === src));
+  const sellerEntries = seen.filter((e) => e.kind === 'entry_written').length;
+  if (!seen.length) return ['', 'Waiting for the seller\'s first journal entry…'];
+  if (has('access_ended') || has('member_revoked')) {
+    const after = seen.filter((e) => e.kind === 'entry_written' && e.at > seen.find((x) => x.kind === 'member_revoked')?.at).length;
+    return ['6', after ? 'The period ended: the seller revoked the follower and the key rotated. New entries are unreadable to it.'
+      : 'The period ended: the seller revokes the follower; the group key rotates.'];
+  }
+  if (has('copy_done') || has('copy_refused') || has('copy_skipped')) return ['5', 'The seller trades; the follower copies within its owner\'s limits. An oversized copy is refused by policy.'];
+  if (has('feed_verified')) return ['4', 'The feed unlocks: fingerprint ✓, every entry\'s on-chain hash ✓, recomputed P&L matches the public curve ✓.'];
+  if (has('payment_verified') || has('admitted')) return ['3', 'The follower pays the real listing; the seller verifies the payment on chain and admits it.'];
+  if (has('payment_refused_by_policy', 'hostile')) return ['2', '"Pay my listing #99": refused by the follower\'s destination whitelist before anything is paid.'];
+  return ['1', `A public P&L curve next to a locked trade feed: ${sellerEntries} entr${sellerEntries === 1 ? 'y' : 'ies'} journaled, encrypted in NOVA.`];
+}
+
+function curveSvg(points) {
+  const W = 560, H = 130, P = 8;
+  const xs = points.map((p) => nsToMs(p.atNs)), ys = points.map((p) => Number(p.realised));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), lo = Math.min(0, ...ys), hi = Math.max(0, ...ys);
+  const X = (x) => P + (x1 === x0 ? (W - 2 * P) : ((x - x0) / (x1 - x0)) * (W - 2 * P));
+  const Y = (y) => H - P - (hi === lo ? 0.5 : (y - lo) / (hi - lo)) * (H - 2 * P);
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('class', 'curve'); svg.setAttribute('preserveAspectRatio', 'none');
+  const zero = document.createElementNS(ns, 'line');
+  Object.entries({ x1: P, x2: W - P, y1: Y(0), y2: Y(0), stroke: '#2b3440', 'stroke-dasharray': '4 4' }).forEach(([k, v]) => zero.setAttribute(k, v));
+  svg.append(zero);
+  let d = '';
+  points.forEach((p, i) => { const x = X(xs[i]), y = Y(ys[i]); d += i === 0 ? `M${x},${y}` : ` H${x} V${y}`; });
+  const path = document.createElementNS(ns, 'path');
+  Object.entries({ d, fill: 'none', stroke: '#3fcf8e', 'stroke-width': 2.5, 'vector-effect': 'non-scaling-stroke' }).forEach(([k, v]) => path.setAttribute(k, v));
+  svg.append(path);
+  points.forEach((p, i) => {
+    const c = document.createElementNS(ns, 'circle');
+    Object.entries({ cx: X(xs[i]), cy: Y(ys[i]), r: 3.5, fill: '#3fcf8e' }).forEach(([k, v]) => c.setAttribute(k, v));
+    svg.append(c);
+  });
+  return svg;
+}
+
+function renderListing(seen) {
+  const box = $('listing'); box.replaceChildren();
+  const pub = [...seen].reverse().find((e) => e.kind === 'listing_published');
+  const l = pub && S.seller.listings.find((x) => x.id === pub.listingId)?.listing;
+  if (!l) { box.append(el('div', { class: 'empty', text: 'No listing yet: it goes live with the first journal entry.' })); return; }
+  const realised = l.curve.points.at(-1).realised;
+  box.append(el('div', { class: 'big', text: `${Number(realised) >= 0 ? '+' : ''}${Number(realised).toFixed(4)}` }, el('small', { text: 'USDC realised · claimed' })));
+  box.append(curveSvg(l.curve.points));
+  box.append(el('div', { class: 'note', text: `Claimed P&L, verifiable after purchase${l.curve.simulated ? ' · simulated trades' : ''}.` }));
+  const kv = el('dl', { class: 'kv' });
+  const row = (k, v) => kv.append(el('dt', { text: k }), el('dd', { text: v }));
+  row('price', `${usdc(l.price)} USDC for ${l.periodMinutes} min`);
+  row('entries', String(l.fingerprint.count));
+  row('fingerprint', short(l.fingerprint.root, 24));
+  row('paid to', l.proceedsAccount);
+  row('listing', short(pub.listingId, 24));
+  box.append(kv);
+}
+
+function renderFeed(seen) {
+  const box = $('feed'); box.replaceChildren();
+  const fv = seen.find((e) => e.kind === 'feed_verified');
+  const ended = seen.find((e) => e.kind === 'access_ended');
+  const written = seen.filter((e) => e.kind === 'entry_written');
+  if (!fv) {
+    box.append(el('div', { class: 'locked' }, el('div', { class: 'pad', text: '🔒' }),
+      el('div', { text: `${written.length} entr${written.length === 1 ? 'y' : 'ies'} locked` }),
+      el('div', { class: 'note', text: 'Side, size, price and reasoning are encrypted in NOVA. Only the listing above is public.' })));
+    return;
+  }
+  box.append(el('div', { class: 'checks' }, el('span', { text: '✓ fingerprint' }), el('span', { text: '✓ every entry\'s hash' }), el('span', { text: '✓ P&L = public curve' })));
+  const t = cursor < 0 ? -Infinity : steps[cursor];
+  const fresh = cursor >= 0 ? steps[cursor] : null;
+  const table = el('table', {}, el('tr', {}, el('th', { text: 'time' }), el('th', { text: 'side' }), el('th', { text: 'size NEAR' }), el('th', { text: 'price' }), el('th', { text: 'reasoning' })));
+  const feed = S.follower.feed.filter((f) => nsToMs(f.recordNs) <= t);
+  for (const f of feed) {
+    const e = f.entry;
+    const tr = el('tr', { class: nsToMs(f.recordNs) === fresh ? 'new' : '' },
+      el('td', { class: 'mono', text: hhmm(nsToMs(f.recordNs)) }), el('td', { class: e.side, text: e.side }),
+      el('td', { class: 'mono', text: Number(e.size).toFixed(4) }), el('td', { class: 'mono', text: e.price }), el('td', { class: 'why', text: e.reasoning }));
+    table.append(tr);
+  }
+  if (ended) {
+    const sealed = written.filter((w) => w.at > ended.at).length;
+    for (let i = 0; i < sealed; i++) table.append(el('tr', { class: 'sealed' }, el('td', { class: 'mono', text: '—' }), el('td', { text: '🔒' }), el('td', { text: '' }), el('td', { text: '' }), el('td', { text: 'written after access ended: unreadable' })));
+  }
+  const scroll = el('div', { class: 'scroll' }, table);
+  box.append(scroll);
+  scroll.scrollTop = scroll.scrollHeight;   // the newest entry stays in view
+}
+
+function li(icon, cls, text, detail, at, link) {
+  const d = el('div', {}, el('div', { text }), detail ? el('div', { class: 'd', text: detail }) : null);
+  if (link) d.append(el('a', { href: link, target: '_blank', rel: 'noopener noreferrer', text: 'view on nearblocks ↗' }));
+  return el('li', {}, el('span', { class: cls, text: icon }), d, el('span', { class: 't', text: hhmm(at) }));
+}
+
+function renderCopies(seen) {
+  const box = $('copies'); box.replaceChildren();
+  for (const e of seen) {
+    if (e.kind === 'payment_refused_by_policy') box.append(li('⛔', 'i-bad', `Listing #99 refused: pays ${e.recipient}`, (e.codes ?? []).join(', '), e.at));
+    if (e.kind === 'copy_done') box.append(li('✓', 'i-ok', e.side === 'buy' ? `Copied buy: ${usdc(e.amount)} USDC → ${near(e.amountOut)} NEAR` : `Copied sell: ${near(e.amount)} NEAR → ${usdc(e.amountOut)} USDC`, 'simulated (dry quote)', e.at));
+    if (e.kind === 'copy_refused') box.append(li('⛔', 'i-warn', `Copy refused: ${e.side} ${e.side === 'buy' ? `${usdc(e.amount)} USDC` : `${near(e.amount)} NEAR`}`, (e.codes ?? []).join(', '), e.at));
+    if (e.kind === 'copy_skipped') box.append(li('·', 'i-info', 'Not copied', e.reason === 'stale' ? 'stale entry' : 'nothing left to sell', e.at));
+    if (e.kind === 'access_ended') box.append(li('■', 'i-info', 'Access ended: copying stopped', null, e.at));
+  }
+  if (!box.children.length) box.append(el('li', { class: 'empty', text: 'Nothing yet.' }));
+}
+
+function renderLedger(seen) {
+  const box = $('ledger'); box.replaceChildren();
+  let entries = 0;
+  const price = seen.find((e) => e.kind === 'listing_approved' && e.src === 'follower')?.price;
+  for (const e of seen) {
+    if (e.kind === 'entry_written') { entries++; box.append(li('▪', 'i-info', `Journal entry ${entries} recorded in NOVA`, `file hash ${short(e.fileHash, 16)}`, e.at)); }
+    if (e.kind === 'payment_settled' && e.src === 'follower') box.append(li('→', 'i-info', `Follower paid ${price ? usdc(price) : '?'} USDC for the listing`, `intent ${short(e.intentHash, 16)}`, e.at));
+    if (e.kind === 'payment_verified') box.append(li('✓', 'i-ok', 'Seller verified the payment on chain', `payer ${short(e.payer, 12)} · tx ${short(e.txHash, 12)}`, e.at, `https://nearblocks.io/txns/${encodeURIComponent(e.txHash)}`));
+    if (e.kind === 'member_admitted') box.append(li('✓', 'i-ok', 'Seller admitted the payer to its group', `until ${hhmm(e.expiresAtMs)}`, e.at));
+    if (e.kind === 'member_revoked') box.append(li('■', 'i-warn', 'Period over: seller revoked the follower', `key rotation ${e.rotation ?? '?'}`, e.at));
+  }
+  box.replaceChildren(...[...box.children].reverse());   // newest first
+  if (!box.children.length) box.append(el('li', { class: 'empty', text: 'Nothing yet.' }));
+}
+
+function renderCard(seen) {
+  const show = steps[cursor] === CLOSING;
+  $('card').hidden = !show;
+  if (!show) return;
+  const list = $('card-list'); list.replaceChildren();
+  const pay = seen.find((e) => e.kind === 'payment_verified');
+  const n = (k) => seen.filter((e) => e.kind === k).length;
+  list.append(el('li', { text: `${n('entry_written')} journal entries recorded in NOVA, each committed by its on-chain file hash.` }));
+  list.append(el('li', { text: `${n('listing_published')} listings published; the follower bought one by its id.` }));
+  if (pay) {
+    const item = el('li', { text: `Payment verified on chain: tx ${short(pay.txHash, 14)} ` });
+    item.append(el('a', { href: `https://nearblocks.io/txns/${encodeURIComponent(pay.txHash)}`, target: '_blank', rel: 'noopener noreferrer', text: 'nearblocks ↗' }));
+    list.append(item);
+  }
+  list.append(el('li', { text: `${n('copy_done')} copies within the follower's limits; ${n('copy_refused') + n('payment_refused_by_policy')} refused by its owner's policy.` }));
+  if (n('member_revoked')) list.append(el('li', { text: 'Access ended on time: the seller revoked the follower and the group key rotated.' }));
+  $('card-note').textContent = S.mode === 'mock' ? 'MOCK MODE: synthetic prices; in-memory NOVA and Agent API; the payment is the real recorded 57r1 payment, replayed.' : 'Simulated trades (H5); real NOVA records.';
+}
+
+function render() {
+  if (!S) return;
+  const seen = upTo();
+  $('mode').hidden = S.mode !== 'mock';
+  $('footnote').textContent = S.mode === 'mock'
+    ? 'MOCK MODE: in-memory NOVA, Agent API and chain; synthetic prices; the payment is the real recorded 57r1 payment, replayed. Simulated trades.'
+    : 'Simulated trades (H5), real NOVA records.';
+  $('errors').textContent = S.errors.length ? `state: ${S.errors.join(' · ')}` : '';
+  const [n, text] = caption(seen);
+  $('caption').replaceChildren(n ? el('span', { class: 'n', text: `BEAT ${n}` }) : '', text);
+  $('clock').textContent = cursor >= 0 && steps[cursor] !== CLOSING ? hhmm(steps[cursor]) : '';
+  renderCard(seen);
+  $('pos').textContent = `${cursor + 1} / ${steps.length}`;
+  $('play').textContent = timer ? '❚❚ Pause' : '▶ Replay';
+  renderListing(seen); renderFeed(seen); renderCopies(seen); renderLedger(seen);
+}
+
+function go(i) { following = i >= steps.length - 1; cursor = Math.max(-1, Math.min(steps.length - 1, i)); render(); }
+function stop() { clearInterval(timer); timer = null; render(); }
+$('restart').onclick = () => { stop(); go(-1); };
+$('back').onclick = () => { stop(); go(cursor - 1); };
+$('fwd').onclick = () => { stop(); go(cursor + 1); };
+$('end').onclick = () => { stop(); go(steps.length - 1); };
+$('play').onclick = () => {
+  if (timer) return stop();
+  if (cursor >= steps.length - 1) go(-1);
+  timer = setInterval(() => { if (cursor >= steps.length - 1) return stop(); go(cursor + 1); }, PACE_MS);
+  render();
+};
+
+load().catch((e) => { $('errors').textContent = String(e.message ?? e); });
+setInterval(() => { if (!timer) load().catch(() => {}); }, 2000);
+if (params.has('autoplay')) setTimeout(() => $('play').click(), 1500);
+</script>
+</body>
+</html>
