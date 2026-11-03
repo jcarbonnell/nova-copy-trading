@@ -19,6 +19,8 @@
  *      maxCopyAgeMs ago (default 15 min) is skipped as stale.
  *   7. end of access: once is_authorized is false, access_ended is logged once and copying stops (beat 6).
  *   8. events: metadata only (ids, hashes, codes, the follower's own amounts), never an entry's reasoning.
+ *   9. the bought feed (option A, 2026-11-03): every entry verifyFeed or verifyLiveEntries accepts is kept in the
+ *      follower's own state (addFeed) for its viewer on 127.0.0.1; nothing is kept from a feed that is refused.
  */
 import { parseListing, ListingRefused, type Listing } from '../core/listing.ts';
 import { verifyFeed, FeedRefused, type FeedReader, type VerifiedEntry } from '../core/verify-feed.ts';
@@ -56,6 +58,8 @@ export interface FollowerState {
   setPayment(p: PaymentRecord | null): Promise<void>;
   copies(): Promise<CopyRecord[]>;
   addCopy(c: CopyRecord): Promise<void>;
+  /** Keeps verified entries the follower bought (its own copy, for its viewer); entries already kept are skipped. */
+  addFeed(entries: VerifiedEntry[]): Promise<void>;
   appendEvent(e: Record<string, unknown>): Promise<void>;
 }
 export interface CopyDecision { side: 'buy' | 'sell'; amount: string }
@@ -228,6 +232,7 @@ export function createFollowerService(deps: FollowerDeps, cfg: FollowerConfig) {
   async function verify(l: Listing): Promise<VerifiedEntry[]> {
     try {
       const f = await verifyFeed(l, deps.reader);
+      await deps.state.addFeed(f.entries);
       known = f.entries;
       await event('feed_verified', { listingId: cfg.approvedId, count: f.entries.length, root: l.fingerprint.root, realised: f.curve.at(-1)!.realised });
       return f.entries;
@@ -246,6 +251,7 @@ export function createFollowerService(deps: FollowerDeps, cfg: FollowerConfig) {
       if (!(await deps.isMember(l.groupId))) { ended = true; await event('access_ended', { listingId: cfg.approvedId }); return; }
       throw e;
     }
+    if (update.entries.length) await deps.state.addFeed(update.entries);
     const done = new Set((await deps.state.copies()).map((c) => c.transId));
     for (const e of update.entries) {
       if (done.has(e.transId)) continue;

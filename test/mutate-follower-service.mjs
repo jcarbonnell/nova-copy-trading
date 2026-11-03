@@ -78,6 +78,10 @@ const MUTANTS = [
   ['G54', 'refused copies counted in the position', "      if (c.outcome !== 'copied') continue;\n", ''],
   ['G55', 'usdcOf truncates', 'return (2n * num + den) / (2n * den);', 'return num / den;'],
   ['G56', 'the mirror sells more than held', 'const n = yoctoOf(entry.size) < positionYocto ? yoctoOf(entry.size) : positionYocto;', 'const n = yoctoOf(entry.size);'],
+  ['G58', 'the verified feed not kept', '      await deps.state.addFeed(f.entries);\n', ''],
+  ['G59', 'live entries not kept', '    if (update.entries.length) await deps.state.addFeed(update.entries);\n', ''],
+  ['G60', 'the feed kept before it verifies', '      const f = await verifyFeed(l, deps.reader);\n      await deps.state.addFeed(f.entries);',
+    '      await deps.state.addFeed((await deps.reader.listRecords(l.groupId)).map((r) => ({ transId: r.trans_id, recordNs: r.timestamp ?? \'0\', entry: {} as any })));\n      const f = await verifyFeed(l, deps.reader);'],
   ['G57', 'the mirror sells nothing as zero', "return n > 0n ? { side: 'sell', amount: n.toString() } : null;", "return { side: 'sell', amount: n.toString() };"],
 ];
 

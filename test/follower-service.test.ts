@@ -38,7 +38,7 @@ const IH = 'B2btEHKa3W2DcSo51dYoEAMghbmHqEUKg78BwSPK3UbY';
 
 function world() {
   const w: Json = { clock: T0, rows: [] as TxRow[], files: {} as Record<string, Uint8Array>, members: new Set<string>([SELLER]), listings: new Map<string, Json>(),
-    calls: [] as string[], payment: null, copies: [] as Json[], events: [] as Json[], keys: 0, statusSeq: ['PROCESSING', 'SUCCESS'], posts: [] as Json[] };
+    calls: [] as string[], payment: null, copies: [] as Json[], feed: [] as Json[], events: [] as Json[], keys: 0, statusSeq: ['PROCESSING', 'SUCCESS'], posts: [] as Json[] };
   w.add = (side: 'buy' | 'sell', size: string, price: string, user = SELLER) => {
     const e: JournalEntry = { v: 1, simulated: true, ts: new Date(w.clock - 1000).toISOString(), pair: 'NEAR/USDC', side, size, price,
       reasoning: SECRET, correlation_id: null, salt: sha(`${w.clock}${side}${size}`) };
@@ -88,6 +88,7 @@ function world() {
     setPayment: async (p: Json) => { w.payment = p ? JSON.parse(JSON.stringify(p)) : null; },
     copies: async () => w.copies.map((c: Json) => ({ ...c })),
     addCopy: async (c: Json) => { w.copies.push({ ...c }); },
+    addFeed: async (es: Json[]) => { for (const e of es) if (!w.feed.some((f: Json) => f.transId === e.transId)) w.feed.push(JSON.parse(JSON.stringify(e))); },
     appendEvent: async (e: Json) => { w.events.push(e); },
   };
   return w;
@@ -299,12 +300,17 @@ async function admitted(cfg: Json = {}) {
   const { w, s, l } = await admitted();
   ok('V1 the feed verifies: count, root and realised P&L are logged', w.events.at(-1).kind === 'feed_verified' && w.events.at(-1).count === 3 &&
     w.events.at(-1).root === l.fingerprint.root && w.events.at(-1).realised === '0.010000', w.events.at(-1));
+  ok('B1 the verified entries are kept in the follower\'s feed, in chain order, as decoded (option A)',
+    w.feed.map((f: Json) => f.transId).join() === w.rows.slice(0, 3).map((r: Json) => r.trans_id).join() &&
+    w.feed.every((f: Json, i: number) => f.recordNs === w.rows[i].timestamp && f.entry.reasoning === SECRET && f.entry.size === ['0.04', '0.04', '0.02'][i]), w.feed.length);
   w.add('buy', '0.02', '2.5');          // 0.05 USDC
   w.add('buy', '0.06', '3');            // 0.18 USDC: above the follower's 0.15
   w.add('sell', '0.03', '3');
   const n = w.calls.length;
   await s.copyTick(l);
   const pos = await s.positionYocto();
+  ok('B2 each new live entry joins the feed once verified, including the one whose copy is refused', w.feed.length === 6 &&
+    w.feed.slice(3).map((f: Json) => f.transId).join() === w.rows.slice(3, 6).map((r: Json) => r.trans_id).join(), w.feed.length);
   ok('K1 a new buy is copied 1:1 in USDC (size × price) as a dry swap', since(w, n).includes('swap buy 50000') && w.copies[0].outcome === 'copied', since(w, n));
   ok('K2 a buy above the follower\'s cap is a refused copy, with the policy code', w.copies[1].outcome === 'refused' &&
     JSON.stringify(w.copies[1].codes) === JSON.stringify(['policy_transaction_limit_exceeded', 'would_succeed: false']) &&
@@ -360,6 +366,7 @@ async function admitted(cfg: Json = {}) {
   w.add('buy', '0.02', '2.5');
   const n = w.calls.length;
   await s.copyTick(l);
+  ok('B4 nothing is kept from live records that fail the checks', w.feed.length === 3, w.feed.length);
   ok('K9 a live record that fails the checks (another uploader) stops copying for good', w.events.some((e: Json) => e.kind === 'live_refused' && /not the seller/.test(e.message)) &&
     s.stoppedReason() !== null && !since(w, n).some((x: string) => x.startsWith('swap')), kinds(w));
 }
@@ -371,6 +378,7 @@ async function admitted(cfg: Json = {}) {
   const e = await thrown(() => s.verify(l));
   w.add('buy', '0.02', '2.5');
   await s.copyTick(l);
+  ok('B3 nothing is kept from a feed that does not verify', w.feed.length === 0, w.feed.length);
   ok('V2 a feed that does not verify is refused (FeedRefused) and nothing is ever copied', e instanceof F.FeedRefused && /does not match its on-chain hash/.test(e.message) &&
     w.events.at(-1).kind === 'feed_refused' && w.copies.length === 0 && s.stoppedReason() === e.message, e.message);
 }
