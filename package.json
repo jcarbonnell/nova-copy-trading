@@ -24,7 +24,8 @@
     "test:members": "tsx test/member-ops.test.ts && node test/mutate-member-ops.mjs",
     "test:writer": "tsx test/journal-writer.test.ts && node test/mutate-journal-writer.mjs",
     "test:builder": "tsx test/listing-builder.test.ts && node test/mutate-listing-builder.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder"
+    "test:service": "tsx test/seller-service.test.ts && node test/mutate-seller-service.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder && npm run test:service"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
