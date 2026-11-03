@@ -26,7 +26,8 @@
     "test:builder": "tsx test/listing-builder.test.ts && node test/mutate-listing-builder.mjs",
     "test:service": "tsx test/seller-service.test.ts && node test/mutate-seller-service.mjs",
     "test:pending": "tsx test/pending-file.test.ts && node test/mutate-pending-file.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder && npm run test:service && npm run test:pending"
+    "test:state": "tsx test/state-dir.test.ts && node test/mutate-state-dir.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder && npm run test:service && npm run test:pending && npm run test:state"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
