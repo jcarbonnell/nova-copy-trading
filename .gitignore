@@ -26,3 +26,4 @@ src/vendor/mutant-*.ts
 .DS_Store
 .vscode/
 .idea/
+state/

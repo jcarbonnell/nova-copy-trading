@@ -31,7 +31,9 @@
     "test:follower": "tsx test/follower-service.test.ts && node test/mutate-follower-service.mjs",
     "test:fstate": "tsx test/follower-state.test.ts && node test/mutate-follower-state.mjs",
     "test:mock": "tsx test/mock-world.test.ts && node test/mutate-mock-world.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder && npm run test:service && npm run test:pending && npm run test:state && npm run test:script && npm run test:follower && npm run test:fstate && npm run test:mock"
+    "test:demo": "tsx src/mock/demo.ts > /dev/null",
+    "demo:mock": "tsx src/mock/demo.ts",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder && npm run test:service && npm run test:pending && npm run test:state && npm run test:script && npm run test:follower && npm run test:fstate && npm run test:mock && npm run test:demo"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
