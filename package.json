@@ -15,7 +15,8 @@
     "test:chain": "tsx test/near-chain.test.ts && node test/mutate-near-chain.mjs",
     "test:journal": "tsx test/journal.test.ts && node test/mutate-journal.mjs",
     "test:pnl": "tsx test/pnl.test.ts && node test/mutate-pnl.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl"
+    "test:listing": "tsx test/listing.test.ts && node test/mutate-listing.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
