@@ -1,0 +1,9 @@
+[
+  { "side": "buy", "amount": "100000", "reasoning": "Demo script 1/7: open a small NEAR position (0.10 USDC). Simulated trade, technical demo, not investment advice." },
+  { "side": "buy", "amount": "100000", "reasoning": "Demo script 2/7: add to the position (0.10 USDC)." },
+  { "side": "sell", "amount": "20000000000000000000000", "reasoning": "Demo script 3/7: take 0.02 NEAR off; the first realised P&L on the public curve." },
+  { "side": "buy", "amount": "50000", "reasoning": "Demo script 4/7: a small add (0.05 USDC), inside a follower's per-trade limit." },
+  { "side": "buy", "amount": "180000", "reasoning": "Demo script 5/7: a larger add (0.18 USDC), inside the seller's limit but above the follower's 0.15." },
+  { "side": "sell", "amount": "30000000000000000000000", "reasoning": "Demo script 6/7: reduce by 0.03 NEAR." },
+  { "side": "sell", "amount": "40000000000000000000000", "reasoning": "Demo script 7/7: reduce by 0.04 NEAR; the position stays long." }
+]
