@@ -1,11 +1,11 @@
 // mutate-follower-state.mjs: every mutant of src/adapters/follower-state.ts must be caught by the harness.
 // Same scheme as mutate-pnl.mjs: one anchored string replacement per mutant, written to a temporary directory,
-// run through test/follower-state.test.ts with FSTATE_MODULE pointing at it. The module's project imports are
-// type-only (erased), so a mutant runs from the temporary directory as is.
+// run through test/follower-state.test.ts with FSTATE_MODULE pointing at it. The module's runtime import of
+// ../core/journal.ts is pointed at the real file, so a mutant runs from the temporary directory.
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -13,7 +13,10 @@ const root = resolve(here, '..');
 const MODULE = join(root, 'src/adapters/follower-state.ts');
 const HARNESS = join(root, 'test/follower-state.test.ts');
 const TSX = join(root, 'node_modules/.bin/tsx');
-const src = readFileSync(MODULE, 'utf8');
+const src = readFileSync(MODULE, 'utf8')
+  .replace(/from '\.\.\/core\/([a-z-]+\.ts)'/g, (_, f) => `from '${pathToFileURL(join(root, 'src/core', f)).href}'`)
+  .replace(/from '\.\.\/follower\/([a-z-]+\.ts)'/g, (_, f) => `from '${pathToFileURL(join(root, 'src/follower', f)).href}'`);
+if (/from '\.\.?\//.test(src)) { console.error('a relative import was not relocated'); process.exit(1); }
 
 /** [id, what it breaks, anchor, replacement] */
 const MUTANTS = [
@@ -45,7 +48,7 @@ const MUTANTS = [
   ['H26', 'written in place', 'await fsp.rename(tmp, paymentPath);', 'await fsp.copyFile(tmp, paymentPath);'],
   ['H27', 'temp files kept', '        await fsp.unlink(tmp).catch(() => {});\n', ''],
   ['H28', 'payment readable by others', "const h = await fsp.open(tmp, 'wx', 0o600);", "const h = await fsp.open(tmp, 'wx', 0o644);"],
-  ['H29', 'an unfinished copies line accepted', "if (lines.at(-1) !== '') fail(", 'if (false) fail('],
+  ['H29', 'an unfinished copies line accepted', "if (lines.at(-1) !== '') fail(`follower state: ${copiesPath}", "if (false) fail(`follower state: ${copiesPath}"],
   ['H30', 'a copies line that is not JSON skipped', "try { c = JSON.parse(line); } catch { return fail(", "try { c = JSON.parse(line); } catch { return { transId: '', outcome: 'skipped' } as CopyRecord; fail("],
   ['H31', 'a loaded copy unchecked', "if (why) fail(`follower state: ${copiesPath} line ${i + 1} ${why}`);", ''],
   ['H32', 'a saved copy unchecked', "if (why) fail(`follower state: refusing to record a copy that ${why}`);", ''],
@@ -53,6 +56,16 @@ const MUTANTS = [
   ['H34', 'an entry recorded twice', "if ((await readCopies()).some((x) => x.transId === c.transId)) fail(", 'if (false) fail('],
   ['H35', 'copies readable by others', "await fsp.appendFile(copiesPath, `${JSON.stringify(c)}\\n`, { encoding: 'utf8', mode: 0o600 });", "await fsp.appendFile(copiesPath, `${JSON.stringify(c)}\\n`, { encoding: 'utf8', mode: 0o644 });"],
   ['H36', 'close leaves the lock', '      await fsp.unlink(lockPath).catch(() => {});\n    },', '    },'],
+  ['H37', 'feed entries unchecked', "if (why) fail(`follower state: refusing to keep a feed entry that ${why}`);", ''],
+  ['H38', 'feed lines unchecked', "if (why) fail(`follower state: ${feedPath} line ${i + 1} ${why}`);", ''],
+  ['H39', 'an invalid entry kept', 'try { encodeEntry(f.entry as JournalEntry); } catch (e) {', 'try { } catch (e) {'],
+  ['H40', 'extra fields kept', "if (Object.keys(f).length !== 3) return", 'if (false) return'],
+  ['H41', 'a bad record time kept', "if (typeof f.recordNs !== 'string' || !/^(0|[1-9]\\d*)$/.test(f.recordNs)) return 'has no recordNs';", ''],
+  ['H42', 'feed entries kept twice', "const fresh = entries.filter((f) => !have.has(f.transId) && have.add(f.transId));", 'const fresh = entries;'],
+  ['H43', 'feed readable by others', "await fsp.appendFile(feedPath, body, { encoding: 'utf8', mode: 0o600 });", "await fsp.appendFile(feedPath, body, { encoding: 'utf8', mode: 0o644 });"],
+  ['H44', 'an unfinished feed line accepted', "if (lines.at(-1) !== '') fail(`follower state: ${feedPath}", "if (false) fail(`follower state: ${feedPath}"],
+  ['H45', 'a damaged feed read as empty', "if (code(e) === 'ENOENT') return [];\n      throw e;\n    }\n    const lines = text.split('\\n');\n    if (lines.at(-1) !== '') fail(`follower state: ${feedPath}",
+    "return [];\n    }\n    const lines = text.split('\\n');\n    if (lines.at(-1) !== '') fail(`follower state: ${feedPath}"],
 ];
 
 

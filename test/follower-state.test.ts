@@ -200,9 +200,62 @@ const p2 = { ...p1, claim };
   writeFileSync(cp, good);
   await Promise.all(Array.from({ length: 10 }, (_, i) => s2.appendEvent({ at: i, kind: 'k' })));
   const lines = readFileSync(join(root, 'events.jsonl'), 'utf8').split('\n');
+  const race = await Promise.all([s2.addCopy({ transId: T(7), outcome: 'skipped' }), s2.addCopy({ transId: T(7), outcome: 'skipped' })].map((p) => p.then(() => 'ok', (e: Error) => e.message)));
+  ok('C6 two records for one entry sent at once: one is kept, the other refused (calls are serialised)',
+    race.filter((r) => r === 'ok').length === 1 && (await s2.copies()).filter((c: Json) => c.transId === T(7)).length === 1, race);
   ok('C5 events are appended one per line, in order, 0600', lines.length === 11 && lines.slice(0, 10).every((l, i) => JSON.parse(l).at === i) &&
     mode(join(root, 'events.jsonl')) === '600');
   await s2.close();
+}
+
+// ── the bought feed (option A) ──────────────────────────────────────────────────────────────
+{
+  const root = fresh();
+  const s = await S.openFollowerState(root);
+  const entry = (n: number) => ({ v: 1, simulated: true, ts: new Date(1_762_000_000_000 + n * 1000).toISOString(), pair: 'NEAR/USDC', side: 'buy',
+    size: '0.01', price: '3.9', reasoning: `reason ${n}`, correlation_id: null, salt: 'ab'.repeat(32) });
+  const fe = (n: number) => ({ transId: T(n), recordNs: String(1_762_000_000_000_000_000 + n), entry: entry(n) });
+  ok('B1 a fresh state has an empty feed', (await s.feed()).length === 0);
+  await s.addFeed([fe(1), fe(2)]);
+  await s.addFeed([fe(2), fe(3), fe(3)]);
+  await s.close();
+  const s2 = await S.openFollowerState(root);
+  const got = await s2.feed();
+  ok('B2 bought entries are kept in order, each once, 0600, and read back by a reopened state',
+    got.map((f: Json) => f.transId).join() === [T(1), T(2), T(3)].join() && got[2].entry.reasoning === 'reason 3' &&
+    mode(join(root, 'feed.jsonl')) === '600' && readFileSync(join(root, 'feed.jsonl'), 'utf8').split('\n').length === 4, got.map((f: Json) => f.transId.slice(-2)));
+  const bad: [string, Json, string][] = [
+    ['an extra field', { ...fe(4), note: 'x' }, 'must hold exactly transId, recordNs and entry'],
+    ['a bad trans id', { ...fe(4), transId: 'x' }, 'has no transId'],
+    ['a bad record time', { ...fe(4), recordNs: '1.5' }, 'has no recordNs'],
+    ['an invalid entry', { ...fe(4), entry: { ...entry(4), side: 'hold' } }, 'holds an invalid entry (entry: side must be buy or sell)'],
+  ];
+  const fails = [];
+  for (const [what, f, want] of bad) {
+    const m = await thrown(() => s2.addFeed([fe(5), f]));
+    if (m !== `FollowerStateError: follower state: refusing to keep a feed entry that ${want}`) fails.push(`${what}: ${m}`);
+  }
+  ok(`B3 a malformed feed entry is refused, and nothing of that batch is kept (${bad.length} cases)`, fails.length === 0 && (await s2.feed()).length === 3, fails);
+  const fp = join(root, 'feed.jsonl');
+  const good = readFileSync(fp, 'utf8');
+  const damaged: [string, string, string][] = [
+    ['an unfinished line', good + '{"transId"', `${fp} ends with an unfinished line`],
+    ['a line that is not JSON', good + 'nope\n', `${fp} line 4 is not JSON`],
+    ['a tampered entry', good + JSON.stringify({ ...fe(6), entry: { ...entry(6), price: '-1' } }) + '\n', `${fp} line 4 holds an invalid entry (entry: price must be a positive decimal string)`],
+  ];
+  const fails2 = [];
+  for (const [what, text, want] of damaged) {
+    writeFileSync(fp, text);
+    const m = await thrown(() => s2.feed());
+    if (m !== `FollowerStateError: follower state: ${want}`) fails2.push(`${what}: ${m}`);
+  }
+  ok('B4 a damaged feed file is refused (3 cases)', fails2.length === 0, fails2);
+  writeFileSync(fp, good);
+  await s2.close();
+  const denied = { ...fsp, readFile: async (p: string, ...r: Json[]) => { if (String(p).endsWith('feed.jsonl')) throw Object.assign(new Error('denied'), { code: 'EACCES' }); return (fsp.readFile as Json)(p, ...r); } };
+  const s3 = await S.openFollowerState(root, { fsp: denied as Json });
+  ok('B5 a feed read error other than "no file" is thrown, never read as an empty feed', (await thrown(() => s3.feed())) === 'Error: denied');
+  await s3.close();
 }
 
 // ── with the follower service: a crash after the key was saved ────────────────────────────────

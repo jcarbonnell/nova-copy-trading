@@ -7,6 +7,10 @@
  *                  and idempotency key never change once saved, its correlation id and claim never change once set,
  *                  and it can be cleared only before a correlation id exists (a refusal documented as not sent).
  *   copies.jsonl   one copy record per line, appended; a damaged line is refused; a trans_id is recorded once.
+ *   feed.jsonl     the follower's own copy of the entries it bought and verified ({ transId, recordNs, entry } per
+ *                  line, each entry a valid canonical journal entry), for the viewer on 127.0.0.1 (option A,
+ *                  2026-11-03). Plaintext, 0600, on the follower's disk only: never in an event, a log or a reply.
+ *                  Appended in chain order; an entry already there is skipped; a damaged line is refused.
  *   events.jsonl   append-only, one JSON object per line (metadata only, by the service's rule).
  *   lock           the owner's pid, taken exclusively at open: a second follower on the same state is refused (two
  *                  processes could otherwise both find no payment and both send one); a lock whose pid is no longer
@@ -16,12 +20,23 @@
 import { promises as defaultFsp } from 'node:fs';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { encodeEntry, JournalRefused, type JournalEntry } from '../core/journal.ts';
 import type { CopyRecord, FollowerState, PaymentRecord } from '../follower/follower-service.ts';
+
+/** One bought, verified entry, as verify-feed.ts returns it. */
+export interface FeedEntry { transId: string; recordNs: string; entry: JournalEntry }
 
 export const PAYMENT_VERSION = 1;
 type Fsp = typeof defaultFsp;
 export interface FollowerStateOptions { fsp?: Fsp; isAlive?: (pid: number) => boolean }
-export interface FollowerStateDir extends FollowerState { readonly path: string; close(): Promise<void> }
+export interface FollowerStateDir extends FollowerState {
+  readonly path: string;
+  /** The bought entries, in the order added. */
+  feed(): Promise<FeedEntry[]>;
+  /** Appends the entries not already in the feed, in the order given. */
+  addFeed(entries: FeedEntry[]): Promise<void>;
+  close(): Promise<void>;
+}
 
 export class FollowerStateError extends Error {
   constructor(message: string) { super(message); this.name = 'FollowerStateError'; }
@@ -56,6 +71,17 @@ function copyProblem(c: unknown): string | null {
   if (!['copied', 'refused', 'skipped'].includes(c.outcome as string)) return 'has no outcome';
   return null;
 }
+function feedProblem(f: unknown): string | null {
+  if (!isObject(f)) return 'is not an object';
+  if (Object.keys(f).length !== 3) return 'must hold exactly transId, recordNs and entry';
+  if (typeof f.transId !== 'string' || !HEX64.test(f.transId)) return 'has no transId';
+  if (typeof f.recordNs !== 'string' || !/^(0|[1-9]\d*)$/.test(f.recordNs)) return 'has no recordNs';
+  try { encodeEntry(f.entry as JournalEntry); } catch (e) {
+    if (e instanceof JournalRefused) return `holds an invalid entry (${e.message})`;
+    throw e;
+  }
+  return null;
+}
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 export async function openFollowerState(dir: string, options: FollowerStateOptions = {}): Promise<FollowerStateDir> {
@@ -66,6 +92,7 @@ export async function openFollowerState(dir: string, options: FollowerStateOptio
   const copiesPath = path.join(root, 'copies.jsonl');
   const eventsPath = path.join(root, 'events.jsonl');
   const lockPath = path.join(root, 'lock');
+  const feedPath = path.join(root, 'feed.jsonl');
   await fsp.mkdir(root, { recursive: true, mode: 0o700 });
 
   for (let attempt = 0; ; attempt++) {
@@ -116,8 +143,37 @@ export async function openFollowerState(dir: string, options: FollowerStateOptio
     });
   }
 
+  async function readFeed(): Promise<FeedEntry[]> {
+    let text: string;
+    try { text = await fsp.readFile(feedPath, 'utf8'); } catch (e) {
+      if (code(e) === 'ENOENT') return [];
+      throw e;
+    }
+    const lines = text.split('\n');
+    if (lines.at(-1) !== '') fail(`follower state: ${feedPath} ends with an unfinished line`);
+    return lines.slice(0, -1).map((line, i) => {
+      let f: unknown;
+      try { f = JSON.parse(line); } catch { return fail(`follower state: ${feedPath} line ${i + 1} is not JSON`); }
+      const why = feedProblem(f);
+      if (why) fail(`follower state: ${feedPath} line ${i + 1} ${why}`);
+      return f as FeedEntry;
+    });
+  }
+
   return {
     path: root,
+    feed: () => serial(readFeed),
+    addFeed: (entries) => serial(async () => {
+      for (const f of entries) {
+        const why = feedProblem(f);
+        if (why) fail(`follower state: refusing to keep a feed entry that ${why}`);
+      }
+      const have = new Set((await readFeed()).map((f) => f.transId));
+      const fresh = entries.filter((f) => !have.has(f.transId) && have.add(f.transId));
+      if (fresh.length === 0) return;
+      const body = fresh.map((f) => JSON.stringify({ transId: f.transId, recordNs: f.recordNs, entry: f.entry })).join('\n') + '\n';
+      await fsp.appendFile(feedPath, body, { encoding: 'utf8', mode: 0o600 });
+    }),
     getPayment: () => serial(readPayment),
     setPayment: (p) => serial(async () => {
       const current = await readPayment();
