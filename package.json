@@ -19,7 +19,8 @@
     "test:feed": "tsx test/verify-feed.test.ts && node test/mutate-verify-feed.mjs",
     "test:membership": "tsx test/membership.test.ts && node test/mutate-membership.mjs",
     "test:live": "tsx test/live-feed.test.ts && node test/mutate-live-feed.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live"
+    "test:ledger": "tsx test/ledger-file.test.ts && node test/mutate-ledger-file.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
