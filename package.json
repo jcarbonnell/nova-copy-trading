@@ -16,7 +16,8 @@
     "test:journal": "tsx test/journal.test.ts && node test/mutate-journal.mjs",
     "test:pnl": "tsx test/pnl.test.ts && node test/mutate-pnl.mjs",
     "test:listing": "tsx test/listing.test.ts && node test/mutate-listing.mjs",
-    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing"
+    "test:feed": "tsx test/verify-feed.test.ts && node test/mutate-verify-feed.mjs",
+    "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed"
   },
   "dependencies": {
     "@near-intents-agent-api/sdk": "0.7.2",
