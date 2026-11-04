@@ -1,5 +1,0 @@
-[
-     { "side": "buy", "amount": "50000", "reasoning": "Demo script, copies 1/3: a small add (0.05 USDC), inside a follower's per-trade limit." },
-     { "side": "buy", "amount": "180000", "reasoning": "Demo script, copies 2/3: a larger add (0.18 USDC), inside the seller's limit but above the follower's 0.15." },
-     { "side": "sell", "amount": "30000000000000000000000", "reasoning": "Demo script, copies 3/3: reduce by 0.03 NEAR." }
-   ]

@@ -1,0 +1,9 @@
+{"at":1793804023478,"kind":"listing_approved","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","price":"100000","count":3}
+{"at":1793804077244,"kind":"payment_sent","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","correlationId":"op_wJsn-iqDMlrl4GoVJ5tM50G2AodkEgHWktJTsTKEj80"}
+{"at":1793804078265,"kind":"payment_settled","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","intentHash":"5KHyn1ePxUtJsGY3n1TK9ZY1zsQPqakhq8m8j83E5uYt","payer":"9a45ea1ce599c5df4143001cddc0dd80e6a0a897f8665d0b6570a70c3ac93b35"}
+{"at":1793804251244,"kind":"admitted","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a"}
+{"at":1793804257012,"kind":"feed_verified","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","count":3,"root":"296ce600ebc9af5442e5c1dbfccf28222675f36b6cbe25a48cc765f86d409750","realised":"-0.000592"}
+{"at":1793804380949,"kind":"copy_done","transId":"3db9e6a6a0e4fac83c3a46234152464d4a902a61fe0f204b19ef7145f32ac7ee","side":"buy","amount":"50000","amountOut":"12030881455234378769601","simulated":true}
+{"at":1793804509824,"kind":"copy_refused","transId":"f686360e89c2f94a5f7efbf8cb6adb27864affbf5775088d32d9ae6bea969111","side":"buy","amount":"180000","codes":["policy_transaction_limit_exceeded"]}
+{"at":1793804633440,"kind":"copy_done","transId":"705a61169da0e0b6440cf2cc61ce3775c3e06287b853bd0d8a3bf2271bdeb2c5","side":"sell","amount":"12030881455234378769601","amountOut":"50060","simulated":true}
+{"at":1793805006954,"kind":"access_ended","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a"}

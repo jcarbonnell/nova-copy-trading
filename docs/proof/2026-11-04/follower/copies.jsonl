@@ -1,0 +1,3 @@
+{"transId":"3db9e6a6a0e4fac83c3a46234152464d4a902a61fe0f204b19ef7145f32ac7ee","outcome":"copied","side":"buy","amount":"50000","amountOut":"12030881455234378769601"}
+{"transId":"f686360e89c2f94a5f7efbf8cb6adb27864affbf5775088d32d9ae6bea969111","outcome":"refused","side":"buy","amount":"180000","codes":["policy_transaction_limit_exceeded"]}
+{"transId":"705a61169da0e0b6440cf2cc61ce3775c3e06287b853bd0d8a3bf2271bdeb2c5","outcome":"copied","side":"sell","amount":"12030881455234378769601","amountOut":"50060"}

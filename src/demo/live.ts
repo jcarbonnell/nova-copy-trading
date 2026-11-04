@@ -12,8 +12,9 @@
 //                                      (the seller pays its own gas); spends: one 0.10 USDC payment, sent only
 //                                      after you type "pay". About 25 minutes (15-minute access period).
 //
-// Run from the repo. Reads (never prints): ~/near/nova/paid-handoff/{.env,.grant-token,aa-state.json} for the
-// seller and ~/near/nova/paid-handoff/follower-1/ for the follower. Optional: AGENT_API_BASE_URL (default: the
+// Run from the repo. Reads (never prints) each agent's .env, .grant-token and aa-state.json from its own directory:
+// SELLER_DIR (default ~/near/nova/paid-handoff) and FOLLOWER_DIR (default ~/near/nova/paid-handoff/follower-1).
+// Optional: AGENT_API_BASE_URL (default: the
 // "api" of observation-20261019T103449Z.json), NEAR_RPC_URL, NEAR_ARCHIVAL_RPC_URL (default fastnear archival),
 // NEAR_ARCHIVAL_MIN_INTERVAL_MS (1200), ENTRY_INTERVAL_MS (60000), HOSTILE_PROCEEDS (wrap.near: an existing
 // account outside the follower's whitelist), PREFLIGHT_PAYMENT_DIR (state/attempt2: an earlier run to re-check).
@@ -58,8 +59,8 @@ const TERMS = { seller: SELLER_ACCOUNT, groupId: GROUP_ID, proceedsAccount: PROC
 const MIN = 60_000;
 const home = (p: string) => p.replace(/^~(?=$|\/)/, os.homedir());
 const HANDOFF = home('~/near/nova/paid-handoff');
-const SELLER_DIR = HANDOFF;
-const FOLLOWER_DIR = path.join(HANDOFF, 'follower-1');
+const SELLER_DIR = path.resolve(home(process.env.SELLER_DIR ?? HANDOFF));
+const FOLLOWER_DIR = path.resolve(home(process.env.FOLLOWER_DIR ?? path.join(HANDOFF, 'follower-1')));
 const preflightOnly = process.argv.includes('--preflight');
 const entryEvery = Number(process.env.ENTRY_INTERVAL_MS ?? MIN);
 const rpcUrl = process.env.NEAR_RPC_URL ?? 'https://rpc.mainnet.near.org';
@@ -101,7 +102,9 @@ async function nearBalance(account: string): Promise<bigint> {
 }
 
 // ── agents ──────────────────────────────────────────────────────────────────────────────────
-const baseUrl = process.env.AGENT_API_BASE_URL ?? JSON.parse(fs.readFileSync(path.join(HANDOFF, 'observation-20261019T103449Z.json'), 'utf8')).api;
+const observation = path.join(HANDOFF, 'observation-20261019T103449Z.json');
+const baseUrl: string = process.env.AGENT_API_BASE_URL ?? envValue(path.join(SELLER_DIR, '.env'), 'NEAR_INTENTS_AGENT_API_URL') ??
+  (fs.existsSync(observation) ? JSON.parse(fs.readFileSync(observation, 'utf8')).api : fail('set AGENT_API_BASE_URL to the Agent API URL'));
 if (!/^https:\/\//.test(baseUrl)) fail('AGENT_API_BASE_URL must be https');
 const sc = credentials(SELLER_DIR, 'seller');
 const fc = credentials(FOLLOWER_DIR, 'follower');
@@ -182,6 +185,7 @@ async function preflight() {
   });
   const dir = path.resolve(process.env.PREFLIGHT_PAYMENT_DIR ?? 'state/attempt2');
   await check(`P11 the payment check works on mainnet: an earlier real payment (${path.basename(dir)}) verifies over ${new URL(archivalUrl).host}`, async () => {
+    if (!fs.existsSync(`${dir}-follower/payment.json`)) return [true, `skipped: no earlier run at ${dir}-follower (set PREFLIGHT_PAYMENT_DIR)`];
     const pay = JSON.parse(fs.readFileSync(`${dir}-follower/payment.json`, 'utf8')).payment;
     const listing = parseListing(fs.readFileSync(`${dir}-seller/listings/${pay.listingId}.json`, 'utf8'), pay.listingId);
     const used = new Set<string>();

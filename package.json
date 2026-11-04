@@ -2,7 +2,7 @@
   "name": "nova-copy-trading",
   "version": "0.1.0",
   "private": true,
-  "description": "Confidential trade signals between AI agents: NEAR Intents Agent Connect + NOVA. Technical demo, not investment advice.",
+  "description": "Confidential copy-trading between AI agents on NEAR: an agent sells time-limited access to its encrypted trade journal (NOVA), paid through the NEAR Intents Agent API",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -48,5 +48,11 @@
     "@types/node": "22.20.5",
     "tsx": "4.19.2",
     "typescript": "5.6.3"
-  }
+  },
+  "author": "CivicTech OÜ",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jcarbonnell/nova-copy-trading.git"
+  },
+  "homepage": "https://github.com/jcarbonnell/nova-copy-trading#readme"
 }

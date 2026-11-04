@@ -15,72 +15,118 @@ only inside a policy signed by its human owner. The journal lives in [NOVA](http
 encrypted per entry, stored as ciphertext, with the key released by a TEE only to on-chain group
 members.
 
-## Why not just share a viewing key?
+Built at NEAR HACKATHON (November 2026). Tracks: Agent Economy (`agents`), Privacy & Private AI
+(`privacy`), AI Security & Defense (`security`). Demo video (2:37, a replay of the recorded mainnet run):
+<X post link>. For automated reviewers: [JUDGES.md](JUDGES.md) maps every claim to its code, its test and
+the command that runs it.
 
-- A viewing key exposes all on-chain activity, with no way to stop. Here access ends with a revocation
-  that rotates the group key.
-- The journal carries the trader's reasoning, which never appears on chain.
-- Each entry is committed on chain (timestamp + SHA-256) as the trade happens, so the listing's
-  fingerprint can be checked after purchase and entries cannot be backdated.
+## The idea: sell a viewing key, not your data
+
+This takes the "sell your viewing keys" idea literally, for an agent's own data. What the seller sells
+is time-limited access to an encrypted journal (a NOVA group), not a copy of it:
+
+- **The listing is public, the journal is not.** Anyone can read the listing: price, access period, the
+  P&L curve and a fingerprint over the entries' on-chain hashes. That is enough to choose a seller from
+  observable evidence (*selection trust*), and nothing more.
+- **Access ends.** At the end of the period the seller revokes the buyer and NOVA rotates the group key;
+  entries written afterwards are unreadable to it. A plain viewing key cannot be taken back.
+- **The reasoning stays off chain.** Each entry carries one line of the agent's reasoning, which never
+  appears in a transaction.
+- **Entries cannot be backdated.** Each entry is committed on chain (timestamp + SHA-256) when it is
+  written, so the buyer can check the listing against what it decrypts.
+
+Why it matters for an agent economy: the sale is an *M2M micropayment* (0.10 USDC) between two agents,
+each spending only inside a policy its owner signed (its *payment mandate*). The seller checks the
+payment on chain and admits the buyer itself; no marketplace, operator or human sits in between. Any
+agent that produces data (signals, research, sensor feeds, model outputs) can sell access to it the
+same way, and any agent can buy, verify and act on it.
 
 ## Claims
 
-Each claim maps to something you can run or open. Status is `planned` until its proof lands.
+Each claim maps to something you can run or open. "Live" means exercised in the recorded mainnet run
+of 2026-11-04 ([Live run](#live-run)); the full list of code, tests and commands is in [JUDGES.md](JUDGES.md).
 
 | # | Claim | How to check | Status |
 |---|---|---|---|
-| C1 | No server and no storage provider sees a journal entry in plaintext or its key. Entries are encrypted in the agent's own process before upload; NOVA stores ciphertext; the decryption key is released by NOVA's TEE only to on-chain group members. | `npm test` (encryption and hash checks); on-chain record links in [Live run](#live-run) | planned |
-| C2 | An agent spends only what its owner signed. The follower can pay only the listing in its owner's policy, and a copy above its per-trade limit is refused. | `npm run demo:mock` (refusal beats); live refusal records | planned |
-| C3 | Payment is what grants access. The seller's agent admits a follower only after checking the payment on chain (final, successful, from the payer to the seller's proceeds account, exact asset and amount, never used before), and access always goes to the paying account. | `npm test` (payment-verification harness); live payment and admission links | planned |
-| C4 | The follower verifies what it bought: the listing's fingerprint (a root over the entries' on-chain hashes), each decrypted entry's SHA-256, and the P&L recomputed from the journal against the public curve. | `npm test` (feed-verification harness); `npm run demo:mock` | planned |
-| C5 | Access ends cleanly. At period end the seller revokes the follower, NOVA rotates the group key, and the follower's next read is refused. | live revocation link and refused read | planned |
-| C6 | Every agent write is signed and paid by the agent's own NEAR account. NOVA signs nothing for it and holds no agent key. | live transaction links (signer = the agent's account) | planned |
+| C1 | No server and no storage provider sees a journal entry in plaintext or its key. Entries are encrypted in the agent's own process before upload; NOVA stores ciphertext; the decryption key is released by NOVA's TEE only to on-chain group members. | `npm test`; live: the follower reads the feed only while it is a member, and entry 7, written after its revocation, is refused (Shade 403) | design (NOVA) + live |
+| C2 | An agent spends only what its owner signed. The follower can pay only the proceeds account in its owner's policy, and a copy above its per-trade limit is refused. | `npm run demo:mock`; live: listing #99 refused (`policy_destination_denied`), a 0.18 USDC copy refused (`policy_transaction_limit_exceeded`) | live |
+| C3 | Payment is what grants access. The seller admits a follower only after checking the payment on chain (final, successful, from the payer to the proceeds account, exact asset and amount, never used before), and access goes to the paying account. | `npm test` (`test/verify-payment.test.ts`, `test/near-chain.test.ts`); live: tx `63vndaKu…` verified, then the admission | live |
+| C4 | The follower verifies what it bought: the listing's fingerprint, each decrypted entry's SHA-256, and the P&L recomputed from the journal against the public curve. | `npm test` (`test/verify-feed.test.ts`, `test/follower-service.test.ts`); live: `feed_verified` | live |
+| C5 | Access ends cleanly. At period end the seller revokes the follower, NOVA rotates the group key, and the follower's next read is refused. | live: `member_revoked` (rotation confirmed), `access_ended`, entry 7 unreadable | live |
+| C6 | Every agent write is signed and paid by the agent's own NEAR account. NOVA signs nothing for it and holds no agent key. | live: the seller's uploads, admission and revocation are calls to `nova-sdk.near` signed by the seller's account ([nearblocks](https://nearblocks.io/address/5a5d96f384a41ba3d1c90399dcd563ed6f52c34aa28ba5f200902a655d8ab288)) | live |
 
 ## Try it (no keys needed)
 
 Requires Node 24 (`.nvmrc`).
 
-```bash
-npm ci
-npm test            # offline harnesses: Agent API, NOVA and NEAR RPC mocked behind fetch
-npm run demo:mock   # the whole story with recorded model outputs; open the printed local URL
-```
-
-You should see a public P&L curve next to a locked trade feed; a hostile listing refused; a payment
-verified and the feed unlocking with each check marked; an oversized copy refused while smaller ones
-follow; and a revocation after which the follower is refused.
+| Do | See |
+|---|---|
+| `npm ci && npm test` | every harness passes (Agent API, NOVA and NEAR RPC mocked behind `fetch`) |
+| `for f in test/mutate-*.mjs; do node "$f" \|\| break; done` | each script ends `N/N mutants caught`: every check in the code is load-bearing |
+| `npm run demo:mock` | `✓ all 6 beats` (in-memory NOVA, Agent API and chain; synthetic prices; the payment is the real recorded 57r1 payment, replayed) |
+| `npm run viewer`, then open http://127.0.0.1:8790/?autoplay | the mock run as a replay, labelled MOCK MODE |
+| `VIEWER_STATE=docs/proof/2026-11-04 npm run viewer`, then open http://127.0.0.1:8790/?autoplay&pace=4000 | the recorded **mainnet** run, 29 steps, labelled LIVE · NEAR mainnet: the public listing next to the locked feed, listing #99 refused, the payment verified and the feed unlocking, a 0.18 USDC copy refused while 0.05 is copied, the revocation |
 
 ## Live mode
 
-`npm run demo:live` reads `.env` (see `.env.example`). It needs your own Agent Connect partner key and
-two agents whose owners have signed the policies described in [docs/live-setup.md](docs/live-setup.md).
-It spends real, tiny amounts on NEAR mainnet (NEAR Intents has no testnet).
+Runs the whole story on NEAR mainnet with two real agents. It spends real, tiny amounts (NEAR Intents
+has no testnet): one 0.10 USDC payment, sent only after you type `pay`, plus the seller's gas for 7
+uploads, 1 admission and 1 revocation.
+
+| Do | See |
+|---|---|
+| `npm run demo:live -- --preflight` | 12 read-only checks (P1–P12): both agents sign in, both owner policies, balances, dry quotes, a dry refusal by policy, and an earlier real payment re-verified over an archival RPC. Nothing signed or spent. |
+| `npm run demo:live` | the preflight, then the six beats in about 25 minutes (15-minute access period), each asserted; it stops at the first failure. Events go to `state/` for the viewer. |
+
+Each agent's credentials stay in its own directory, never in this repository: by default
+`~/near/nova/paid-handoff/` (seller) and `~/near/nova/paid-handoff/follower-1/` (follower), each with
+`.env` (the Agent API key), `.grant-token` and `aa-state.json`. Setting up the two agents and their
+owner-signed policies: [docs/live-setup.md](docs/live-setup.md). The directories can be set with
+`SELLER_DIR` and `FOLLOWER_DIR`; every variable is listed in [.env.example](.env.example).
 
 ## Live run
 
-Mainnet transactions from the recorded run: *to be filled in after the live run.*
+Recorded on NEAR mainnet on 2026-11-04. Full terminal output: [docs/proof/2026-11-04/demo-live.txt](docs/proof/2026-11-04/demo-live.txt);
+the agents' event logs and listings, replayable in the viewer: [docs/proof/2026-11-04/](docs/proof/2026-11-04/).
+
+| What | Value |
+|---|---|
+| Seller agent (NEAR account) | [`5a5d96f384a41ba3d1c90399dcd563ed6f52c34aa28ba5f200902a655d8ab288`](https://nearblocks.io/address/5a5d96f384a41ba3d1c90399dcd563ed6f52c34aa28ba5f200902a655d8ab288) |
+| Follower agent (NEAR account) | [`9a45ea1ce599c5df4143001cddc0dd80e6a0a897f8665d0b6570a70c3ac93b35`](https://nearblocks.io/address/9a45ea1ce599c5df4143001cddc0dd80e6a0a897f8665d0b6570a70c3ac93b35) |
+| NOVA group | `agent-owned-20261030T073943Z` (owned by the seller agent) |
+| Journal | 7 entries, one NOVA record each (`trans_id`s in `docs/proof/2026-11-04/seller/events.jsonl`) |
+| Listing bought | `b6bfa932…0d52a`: 0.10 USDC to `1000fans.near` (the seller's proceeds account), 15 minutes, 3 entries |
+| Listing #99 (pays `wrap.near`) | refused by the follower's owner policy in a dry preview (`policy_destination_denied`); nothing sent |
+| Payment | intent `5KHyn1ePxUtJsGY3n1TK9ZY1zsQPqakhq8m8j83E5uYt`, settled 14:54:38 UTC; NEAR transaction [`63vndaKumpgAMaNFeXg6QycethFYZb8a4sNwyvae15r7`](https://nearblocks.io/txns/63vndaKumpgAMaNFeXg6QycethFYZb8a4sNwyvae15r7) |
+| Verified by the seller | 14:57:12 UTC, over `archival-rpc.mainnet.fastnear.com` |
+| Admitted | 14:57:31 UTC, by the seller's own signature; access until 15:09:33 UTC |
+| Copies | 0.05 USDC buy copied; 0.18 USDC buy refused (`policy_transaction_limit_exceeded`, the owner's 0.15 cap); the sell copied, sized to the follower's position. Copies are dry quotes. |
+| Revoked | 15:10:03 UTC, group key rotation confirmed; entry 7, written after it, refused to the follower (Shade 403) |
 
 ## How NEAR is used
 
 | NEAR component | Role |
 |---|---|
-| NEAR Intents Agent API (Agent Connect) | Each agent's account, owner-signed policy, USDC payment (withdrawal), swaps, signed NOVA writes (`native/near/call`), NOVA sign-in (NEP-413) |
-| NEAR Intents | Settlement of the payment and of the trades |
-| NOVA contract `nova-sdk.near` | Group membership, one on-chain record (timestamp + SHA-256) per journal entry, revocation |
-| NEAR AI Cloud | The models that propose trades and decide whether to copy |
+| NEAR Intents Agent API (Agent Connect) | Each agent's NEAR account and owner-signed policy; the USDC payment (a withdrawal); confidential dry swap quotes for trades and copies; the seller's signed NOVA writes (`native/near/call`); NOVA sign-in (NEP-413) |
+| NEAR Intents (`intents.near`) | Settlement of the payment |
+| NEAR RPC (archival) | The seller's own on-chain check of the payment before it admits anyone |
+| NOVA contract `nova-sdk.near` | Group membership, one on-chain record (timestamp + SHA-256) per journal entry, revocation and key rotation |
+| NOVA's TEE (Shade) | Releases a group's key only to current on-chain members |
 
 ## Trust assumptions and limits
 
-- **The follower trusts the seller to admit it after payment.** There is no on-chain escrow: NOVA's
-  contract-enforced settlement is designed but parked, because a withdrawal's memo does not reach the
-  chain. The seller's agent admits automatically after its on-chain check; no human and no NOVA
-  operator decides.
-- **The model provider sees what each agent reasons about.** The guarantee in C1 covers servers and
-  storage, not the inference provider each agent uses.
+- **The follower trusts the seller to admit it after payment.** There is no on-chain escrow yet: the
+  follower pays first, then the seller verifies and admits it (see [Next steps](#next-steps)). The seller's
+  agent admits automatically after its on-chain check; no human and no NOVA operator decides.
+- **The seller trusts its RPC node's answers** when it checks a payment; the check only confirms that each
+  reply is for what it asked.
+- **Trade decisions are scripted** (`demo/live-script.json`) and their contents are simulated (dry
+  quotes). The files, the payment, the admission and the revocation are real.
 - **"Verifiable" means consistent and committed in time, not profitable or complete.** The follower can
   check that the P&L matches the journal and that each entry was recorded when claimed. It cannot see
   journals the seller chose not to list.
 - **Revocation stops future access only.** Entries the follower already decrypted stay with it.
+- Known limits and deferred work: [docs/deferrals.md](docs/deferrals.md).
 
 ## What existed before this hackathon, and what was built in it
 
@@ -94,7 +140,42 @@ The hackathon window opened on 2026-10-19 (NEAR HACKATHON rule Q-001).
 | Everything else in this repository | this repository | from 2026-11-02 | yes |
 
 Owner-side policy and funding scripts stay in `nova/paid-handoff` (they use the owner's wallet key and
-are not part of this demo). NOVA's dashboard Cleanroom is private and is not used here.
+are not part of this demo). NOVA's dashboard Cleanroom is private and is not used here. This repository's
+first commit is 2026-11-02.
+
+Libraries (NEAR HACKATHON rule Q-005): `@near-intents-agent-api/sdk`, `nova-sdk-js` (own, baseline),
+`nova-agent-connect` (own, vendored in `src/vendor/`), `tsx` and `typescript`. The code was written with
+an AI coding assistant (Claude Code); every security-relevant module has a standalone harness and a
+mutation script.
+
+## Next steps
+
+- **Escrow: pay only for what is delivered.** Today the buyer pays first and the seller admits it. A
+  contract escrow would hold the payment until the admission is on chain (*verify-then-pay*,
+  *trustless settlement*), closing the last trust step in C3.
+- **Model-driven agents.** Replace the scripted decider with a model that trades, and one that decides
+  what to copy, both inside the same owner policies.
+- **Reputation from verified history.** Every sale leaves a verified payment, admission and feed check on
+  chain; aggregated, they become a seller's track record (*reputation capital*).
+
+## Vocabulary
+
+Terms from the agentic-commerce literature, as used here:
+
+| Term | Here |
+|---|---|
+| M2M micropayment | the 0.10 USDC payment from one agent to another |
+| Payment mandate | each owner's signed Agent Connect policy: who the agent may pay, how much, for what |
+| Selection trust | choosing a seller from its public listing (P&L curve, fingerprint) before any access |
+| Trust gap | intent, payment evidence and audit not linked; here the policy, the on-chain payment check and the per-entry records link them |
+| Trusted execution environment (TEE) | NOVA's Shade, which releases a group key only to on-chain members |
+| Verify-then-pay, trustless settlement | the escrow in Next steps; today the order is pay, then verify, then admit |
+| Reputation capital | the verified track record a seller could accumulate (Next steps) |
+
+## About NOVA
+
+NOVA is the encrypted, group-based data layer this demo is built on: [nova-sdk.com](https://nova-sdk.com).
+A machine-readable overview for AI agents and reviewers: [nova-sdk.com/llms.txt](https://nova-sdk.com/llms.txt).
 
 ## License
 

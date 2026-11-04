@@ -1,0 +1,106 @@
+> nova-copy-trading@0.1.0 demo:live
+> tsx src/demo/live.ts
+
+demo:live · NEAR mainnet · seller 5a5d96f384… · follower 9a45ea1ce5… · access 15 min · an entry every 60s
+           technical demo, not investment advice
+
+[00:00] PREFLIGHT · read-only: nothing is signed or spent
+⚠️  MAINNET MODE: Operations use real NEAR tokens.
+📋 Contract: nova-sdk.near
+💰 Check costs at: https://github.com/jcarbonnell/nova
+✓ P1 the seller signs in to NOVA as its own account (grant valid) · 5a5d96f384a4
+⚠️  MAINNET MODE: Operations use real NEAR tokens.
+📋 Contract: nova-sdk.near
+💰 Check costs at: https://github.com/jcarbonnell/nova
+✓ P2 the follower signs in to NOVA as its own account (grant valid) · 9a45ea1ce599
+✓ P3 the seller's policy is revision 6: swap only, destinations any, NOVA calls only, 12 actions/hour · revision 6
+✓ P4 the follower's policy pays only 1000fans.near (memo copytrade), caps 0.15 USDC per trade · revision 1
+✓ P5 balances: the seller has NEAR for 9 writes; the follower has 0.10 USDC to pay · seller 0.751735 NEAR · follower 0.2 USDC
+✓ P6 the seller's dry confidential quote passes (0.10 USDC → NEAR) · out 24221240941277292576418
+✓ P7 the follower's copy quotes: 0.05 USDC passes, 0.18 USDC is refused by its policy · 0.05 → copied · 0.18 → policy_transaction_limit_exceeded, insufficient_balance
+✓ P8 the follower's dry payment to 1000fans.near passes · []
+✓ P9 the follower's dry payment to wrap.near (exists, not whitelisted) is refused by its policy · policy_destination_denied
+✓ P10 the seller reads its group; the follower is not a member · 9 records · follower member: false
+✓ P11 the payment check works on mainnet: an earlier real payment (attempt2) verifies over archival-rpc.mainnet.fastnear.com · tx ADUAaaz5h1UN · 218s
+✓ P12 fresh state: state/seller and state/follower do not exist yet
+
+preflight: 12/12 passed
+⚠️  MAINNET MODE: Operations use real NEAR tokens.
+📋 Contract: nova-sdk.near
+💰 Check costs at: https://github.com/jcarbonnell/nova
+⚠️  MAINNET MODE: Operations use real NEAR tokens.
+📋 Contract: nova-sdk.near
+💰 Check costs at: https://github.com/jcarbonnell/nova
+
+[03:44] BEAT 1 · the seller journals its trades; its listing is public, the feed stays encrypted
+   seller · entry_written {"transId":"1e756e651d81e3e40aad0d7b548457d726daf5221606dfbb8b69bde4701689ec","fileHash":"069882fc512d5b7f99365255737fcd1465fc4746bcf884dcfb3f3ada043218ce"}
+   seller · listing_build_failed {"message":"MCP tool 'get_group_transactions' failed: {\"jsonrpc\":\"2.0\",\"error\":{\"name\":\"HANDLER_ERROR\",\"cause\":{\"info\":{\"cause\":\"NOT_OBSERVED\"
+
+[05:42] entry 1 recorded in NOVA
+   seller · entry_written {"transId":"cb8e07647d7cf1d56af916c8eecc7a8ae1d221f43d8aefb426a588795d00cda4","fileHash":"883c7d7131b2844ec355063d615723e838b19a18887eec9f58cf6d8e76415418"}
+   seller · listing_published {"listingId":"c669fdbec9d9993226b02dd17414da3aaaa6a1087acec476be79587ebbf4856c","count":2}
+
+[07:27] entry 2 recorded in NOVA
+   seller · entry_written {"transId":"382d0a28a1498b25b11fa737203bff26d05bb438247a2d9d17b49aa9419a98c6","fileHash":"4992d7e697513dc778a91109801a2dfd732614850ce8d458a7eaad30be3a1f9c"}
+   seller · listing_published {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","count":3}
+
+[08:58] entry 3 recorded in NOVA
+
+[08:58] BEAT 2 · listing #99 pays wrap.near: the follower's owner policy must refuse it
+   follower · listing_approved {"listingId":"56cf3f07c5d090f0e913e75bf36858f6f84a05560006eb472cc0772e3d48726c","price":"100000","count":3}
+   follower · payment_refused_by_policy {"listingId":"56cf3f07c5d090f0e913e75bf36858f6f84a05560006eb472cc0772e3d48726c","recipient":"wrap.near","codes":["policy_destination_denied"]}
+
+[09:00] ✓ refused by policy; nothing paid
+
+[09:00] BEAT 3 · the follower buys the real listing
+   follower · listing_approved {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","price":"100000","count":3}
+
+   Payment: 0.1 USDC to 1000fans.near (memo copytrade), 15 min of access to 3 entries.
+   Dry preview: warnings [], fee 0.000000 USD.
+   Type "pay" to send it (anything else stops): pay
+   follower · payment_sent {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","correlationId":"op_wJsn-iqDMlrl4GoVJ5tM50G2AodkEgHWktJTsTKEj80"}
+   follower · payment_settled {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","intentHash":"5KHyn1ePxUtJsGY3n1TK9ZY1zsQPqakhq8m8j83E5uYt","payer":"9a45ea1ce59
+
+[09:55] paid; waiting 20 s for the blocks around the payment to be final
+   seller · payment_verified {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","intentHash":"5KHyn1ePxUtJsGY3n1TK9ZY1zsQPqakhq8m8j83E5uYt","payer":"9a45ea1ce59
+   seller · member_admitted {"intentHash":"5KHyn1ePxUtJsGY3n1TK9ZY1zsQPqakhq8m8j83E5uYt","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","member":"9a45ea1ce5
+   follower · admitted {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a"}
+
+[12:48] ✓ verified on chain and admitted
+
+[12:48] BEAT 4 · the follower verifies what it bought
+   follower · feed_verified {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","count":3,"root":"296ce600ebc9af5442e5c1dbfccf28222675f36b6cbe25a48cc765f86d4097
+
+[12:53] ✓ fingerprint, every entry's hash, recomputed P&L = public curve
+
+[12:53] BEAT 5 · the seller trades; the follower copies within its owner's limits
+   seller · entry_written {"transId":"3db9e6a6a0e4fac83c3a46234152464d4a902a61fe0f204b19ef7145f32ac7ee","fileHash":"dcec71ffe99b1ebb511447db017b90584d3a2382f43d7995ddc441c450a6963d"}
+   seller · listing_published {"listingId":"87859872450b2fc8c3dfec4fc9e3d34aa87616cc7be31904d9f89271895a2860","count":4}
+
+[14:28] entry 4 recorded in NOVA
+   follower · copy_done {"transId":"3db9e6a6a0e4fac83c3a46234152464d4a902a61fe0f204b19ef7145f32ac7ee","side":"buy","amount":"50000","amountOut":"12030881455234378769601","simulated":tr
+   seller · entry_written {"transId":"f686360e89c2f94a5f7efbf8cb6adb27864affbf5775088d32d9ae6bea969111","fileHash":"77052c97f29bcffc777cfebbae7ceaf1148f31e162cbfb7d8307b11d654eb632"}
+   seller · listing_published {"listingId":"26359f70cbc89f04719cbe8ceaf2f6362d58030e66c4fdc66a1bf8625f40f2c9","count":5}
+
+[16:31] entry 5 recorded in NOVA
+   follower · copy_refused {"transId":"f686360e89c2f94a5f7efbf8cb6adb27864affbf5775088d32d9ae6bea969111","side":"buy","amount":"180000","codes":["policy_transaction_limit_exceeded"]}
+   seller · entry_written {"transId":"705a61169da0e0b6440cf2cc61ce3775c3e06287b853bd0d8a3bf2271bdeb2c5","fileHash":"502fc22cb0f30a1b180678d91f8880a2370a981f3e410797c45e7a6b6ea48912"}
+   seller · listing_published {"listingId":"3786b24ba0b70e41f7fedb8a5c4aa7a8425b3333d4fc62eb6c2a7739a009f0d2","count":6}
+
+[18:41] entry 6 recorded in NOVA
+   follower · copy_done {"transId":"705a61169da0e0b6440cf2cc61ce3775c3e06287b853bd0d8a3bf2271bdeb2c5","side":"sell","amount":"12030881455234378769601","amountOut":"50060","simulated":t
+
+[19:10] ✓ copied 0.05, refused 0.18 by policy (policy_transaction_limit_exceeded), sell: copied
+
+[19:10] BEAT 6 · access ends at 15:09:33 UTC; the seller revokes it then
+   seller · member_revoked {"intentHash":"5KHyn1ePxUtJsGY3n1TK9ZY1zsQPqakhq8m8j83E5uYt","listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a","member":"9a45ea1ce5
+   follower · access_ended {"listingId":"b6bfa9321699c905b586401e130790b39692c6f5c0ae4d0d2422ab72b090d52a"}
+   seller · entry_written {"transId":"dd797a24bc330e0db6ea75e887f1d3db0b0f63bc9e71dfd224409b996f767960","fileHash":"1d9ac77e8f49f6c519ad9862b55a2b3e90e22bda263b9695f1c478da663b16b3"}
+   seller · listing_published {"listingId":"d491ca3c4385a9bdd062a7390e3be62ba4cb4cb4a5b17a95611f3297ee76b103","count":7}
+
+[27:11] entry 7 recorded in NOVA
+
+[27:13] ✓ revoked, key rotated; the next entry is unreadable to the follower (MCP tool 'prepare_retrieve' failed: Shade retrieve failed: 403 - {"error":"Unaut)
+
+[27:13] DONE · all beats on mainnet. Record the replay: VIEWER_STATE=state npm run viewer → http://127.0.0.1:8790/?autoplay&pace=4000
+Technical demo, not investment advice. Trade contents simulated; files, payment, admission and revocation real.
