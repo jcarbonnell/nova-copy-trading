@@ -38,7 +38,7 @@ import { memberOps, sellerSignerOptions } from '../adapters/member-ops.ts';
 import { createJournalWriter, quoteProblems, USDC, WNEAR } from '../seller/journal-writer.ts';
 import { parseScript, scriptDecider } from '../seller/script-decider.ts';
 import { createSellerService, type StateStore } from '../seller/seller-service.ts';
-import { createFollowerService, mirrorDecider, FollowerRefused, type FollowerAgent, type SellerClient, type FollowerState } from '../follower/follower-service.ts';
+import { createFollowerService, mirrorDecider, quoteRefusals, FollowerRefused, type FollowerAgent, type SellerClient, type FollowerState } from '../follower/follower-service.ts';
 import { hostileListing } from './hostile-seller.ts';
 
 // ── fixed terms ─────────────────────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ async function preflight() {
     const a: any = await followerAgent.quoteSwap({ origin_asset: USDC, destination_asset: WNEAR, amount: '50000' });
     const b: any = await followerAgent.quoteSwap({ origin_asset: USDC, destination_asset: WNEAR, amount: '180000' });
     const codes = (b?.warnings ?? []).map((w: any) => w.code);
-    return [a?.dry === true && quoteProblems(a, true).length === 0 && codes.some((c: string) => c.startsWith('policy_')), `0.18 → ${codes.join(', ') || 'no warning'}`];
+    return [a?.dry === true && quoteRefusals(a).length === 0 && quoteRefusals(b).some((c: string) => c.startsWith('policy_')), `0.05 → ${quoteRefusals(a).join(', ') || 'copied'} · 0.18 → ${codes.join(', ') || 'no warning'}`];
   });
   await check('P8 the follower\'s dry payment to 1000fans.near passes', async () => {
     const q: any = await followerAgent.previewWithdraw({ asset: USDC, amount: PRICE, chain: 'near', recipient: PROCEEDS, memo: MEMO });
@@ -297,7 +297,11 @@ async function run() {
     await sleep(15_000); await follower.copyTick(l);
   }
   const copies = await fDisk.copies();
-  if (copies.filter((c) => c.outcome === 'copied').length < 2 || !copies.some((c) => c.outcome === 'refused')) fail(`the copies are not as expected: ${JSON.stringify(copies)}`);
+  // entry 4 (buy 0.05) copied; entry 5 (buy 0.18) refused by the follower's owner policy; entry 6 (a sell) is
+  // whatever the dry quote says, since the follower's copies are quotes and it holds no NEAR to sell
+  if (copies.length !== 3 || copies[0].outcome !== 'copied' || copies[1].outcome !== 'refused' || !(copies[1].codes ?? []).some((c) => c.startsWith('policy_')))
+    fail(`the copies are not as expected: ${JSON.stringify(copies)}`);
+  say(`✓ copied 0.05, refused 0.18 by policy (${(copies[1].codes ?? []).join(', ')}), sell: ${copies[2].outcome}`);
 
   // beat 6
   const expires = (await ledger.all()).find((r) => r.member === FOLLOWER_ACCOUNT)?.expiresAtMs ?? fail('no admission record');
