@@ -213,20 +213,23 @@ const tooMany = () => new Response('Too Many Requests', { status: 429 });
   ok('N19 429 every time → error after 6 retries (7 requests)', /rpc block: HTTP 429 after 6 retries/.test(msg(e)) && f.calls.length === 7, { e: msg(e), n: f.calls.length });
 }
 {
-  const html = fakeRpc(blocks(5), {}, () => new Response('<html>bad gateway</html>', { status: 502 }));
+  const html = fakeRpc(blocks(5), {}, () => new Response('<html>bad request</html>', { status: 400 }));
   const e1 = await failure(() => html.reader.blockTimeMs(`B${BASE + 1}`));
   const withResult = fakeRpc(blocks(5), {}, () => new Response(JSON.stringify({ result: { header: { height: BASE + 1, hash: `B${BASE + 1}`, timestamp_nanosec: ns(T0) } } }), { status: 500 }));
   const e2 = await failure(() => withResult.reader.blockTimeMs(`B${BASE + 1}`));
   const empty = fakeRpc(blocks(5), {}, () => new Response(JSON.stringify({ jsonrpc: '2.0', id: 'x' })));
   const e3 = await failure(() => empty.reader.blockTimeMs(`B${BASE + 1}`));
-  ok('N20 a malformed or non-2xx reply → error, no retry (HTML 502; 500 carrying a result; 200 without a result)',
-    /rpc block: HTTP 502/.test(msg(e1)) && /rpc block: HTTP 500/.test(msg(e2)) && /rpc block: no result/.test(msg(e3)) &&
-    html.calls.length === 1 && withResult.calls.length === 1 && empty.calls.length === 1, [msg(e1), msg(e2), msg(e3)]);
+  const rpcErr = fakeRpc(blocks(5));
+  const e4 = await failure(() => rpcErr.reader.txStatus('nope', INTENTS));
+  ok('N20 a malformed or non-2xx reply, or a JSON-RPC error → error, no retry (HTML 400; 500 carrying a result; 200 without a result; UNKNOWN_TRANSACTION)',
+    /rpc block: HTTP 400$/.test(msg(e1)) && /rpc block: HTTP 500$/.test(msg(e2)) && /rpc block: no result/.test(msg(e3)) && /UNKNOWN_TRANSACTION$/.test(msg(e4)) &&
+    html.calls.length === 1 && withResult.calls.length === 1 && empty.calls.length === 1 && rpcErr.calls.length === 1, [msg(e1), msg(e2), msg(e3), msg(e4)]);
 }
 {
-  const reader = createNearChain({ rpcUrl: RPC_URL, fetch: async () => { throw new TypeError('fetch failed'); }, now: () => 0, sleep: async () => {} });
+  let n = 0;
+  const reader = createNearChain({ rpcUrl: RPC_URL, fetch: async () => { n++; throw new TypeError('fetch failed'); }, now: () => 0, sleep: async () => {} });
   const e = await failure(() => reader.blockTimeMs(`B${BASE + 1}`));
-  ok('N21 a transport failure → error naming it', /rpc block: fetch failed/.test(msg(e)), msg(e));
+  ok('N21 a transport failure every time → error naming it, after 6 retries (7 requests)', /rpc block: fetch failed after 6 retries$/.test(msg(e)) && n === 7, { e: msg(e), n });
 }
 {
   const f = fakeRpc(blocks(60, { put: { [BASE + 10]: [{ shard: 0 }, { shard: 1, txs: [tx('x')] }] } }));
@@ -238,6 +241,33 @@ const tooMany = () => new Response('Too Many Requests', { status: 429 });
   const f = fakeRpc(blocks(5));
   const e = await failure(() => f.reader.txStatus('nope', INTENTS));
   ok('N23 an RPC failure is an RpcError, never a PaymentRefused (never a verdict)', e instanceof NearRpcError && !(e instanceof PaymentRefused), (e as Error)?.name);
+}
+
+// reads are idempotent, so a timeout, a network failure or a gateway error (502, 503, 504) is retried like a 429
+const timedOut = () => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError'); };
+{
+  const f = fakeRpc(blocks(5), {}, (m, p, n) => (n === 1 ? timedOut() : undefined));
+  const got = await f.reader.blockTimeMs(`B${BASE + 1}`).catch((e: unknown) => msg(e));
+  ok('N26 a timeout, then an answer → the answer, after a backoff of 1 s', got === msAt(1) && f.calls.length === 2 && f.sleeps.includes(1000), { got, sleeps: f.sleeps });
+}
+{
+  const f = fakeRpc(blocks(5), {}, (m, p, n) => { if (n <= 2) throw new TypeError('fetch failed'); return undefined; });
+  const got = await f.reader.blockTimeMs(`B${BASE + 1}`).catch((e: unknown) => msg(e));
+  ok('N27 a network failure twice, then an answer → the answer, after backoffs of 1 s and 2 s',
+    got === msAt(1) && f.calls.length === 3 && f.sleeps.includes(1000) && f.sleeps.includes(2000) && !f.sleeps.includes(4000), { got, sleeps: f.sleeps });
+}
+{
+  const status = [502, 503, 504];
+  const f = fakeRpc(blocks(5), {}, (m, p, n) => (n <= 3 ? new Response('<html>gateway</html>', { status: status[n - 1] }) : undefined));
+  const got = await f.reader.blockTimeMs(`B${BASE + 1}`).catch((e: unknown) => msg(e));
+  ok('N28 502, 503 and 504, then an answer → the answer, after backoffs of 1 s, 2 s and 4 s',
+    got === msAt(1) && f.calls.length === 4 && f.sleeps.includes(4000), { got, n: f.calls.length, sleeps: f.sleeps });
+}
+{
+  const f = fakeRpc(blocks(5), {}, () => timedOut());
+  const e = await failure(() => f.reader.blockTimeMs(`B${BASE + 1}`));
+  ok('N29 a timeout every time → an RpcError naming it, after 6 retries (7 requests)',
+    e instanceof NearRpcError && /rpc block: The operation was aborted due to timeout after 6 retries$/.test(msg(e)) && f.calls.length === 7, { e: msg(e), n: f.calls.length });
 }
 
 // ── end to end: verifyPayment over the reader, the real fixture in the fake chain ───────────

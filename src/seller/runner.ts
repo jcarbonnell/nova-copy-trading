@@ -104,7 +104,7 @@ const quotes = { swap: (id: string, req: { origin_asset: string; destination_ass
 const uploader = { upload: (g: string, data: Buffer, name: string) => conn.nova.upload(g, data, name) };
 
 const svc = await createSellerService({
-  reader, chain: createNearChain({ rpcUrl: archivalUrl }), ledger, ops, signer, state,
+  reader, chain: createNearChain({ rpcUrl: archivalUrl, minIntervalMs: intEnv('NEAR_ARCHIVAL_MIN_INTERVAL_MS', 200, 50), maxRetries: 10 }), ledger, ops, signer, state,
   decider: scriptDecider(decisions),
   makeWriter: (history) => createJournalWriter({ quotes, nova: uploader }, { agentId, groupId: GROUP_ID, simulated: SIMULATED }, history),
 }, { terms: { seller: SELLER_ACCOUNT, groupId: GROUP_ID, proceedsAccount: PROCEEDS, token: USDC_CONTRACT, price: PRICE,

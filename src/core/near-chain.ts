@@ -12,14 +12,17 @@
  * transaction signed by intents.near is seen, only that shard's chunks are read; the learned shard is
  * forgotten when the number of shards changes (resharding).
  *
- * Public RPCs rate-limit: at most one request per `minIntervalMs`, and HTTP 429 is retried with
- * exponential backoff. Every failure is a NearRpcError: an RPC failure is never a payment verdict.
+ * Public RPCs rate-limit: at most one request per `minIntervalMs`. Every call is a read, so a retry is safe:
+ * HTTP 429, a gateway error (502, 503, 504), a timeout or a network failure is retried with exponential
+ * backoff, up to `maxRetries` times. Every failure is a NearRpcError: an RPC failure is never a payment verdict.
  */
 import { INTENTS, type ChainReader } from './verify-payment.ts';
 
 export const GENESIS_HEIGHT = 9_820_210;
 /** No mainnet block comes faster than this, so it bounds the binary search from below. */
 export const MIN_BLOCK_MS = 400;
+/** HTTP statuses retried like a transport failure. Any other non-2xx reply is an error at once. */
+export const RETRY_STATUS = new Set([429, 502, 503, 504]);
 
 export interface NearChainOptions {
   rpcUrl: string;
@@ -57,17 +60,19 @@ export function createNearChain(o: NearChainOptions): ChainReader {
       const wait = lastAt + minIntervalMs - now();
       if (wait > 0) await sleep(wait);
       lastAt = now();
-      let res: Response;
+      let res: Response | null = null;
+      let reason: string;
       try {
         res = await fetchFn(o.rpcUrl, {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ jsonrpc: '2.0', id: 'nc', method, params }), signal: AbortSignal.timeout(timeoutMs),
         });
+        reason = `HTTP ${res.status}`;
       } catch (e) {
-        throw new NearRpcError(method, String((e as Error)?.message ?? e));
+        reason = String((e as Error)?.message ?? e);
       }
-      if (res.status === 429) {
-        if (attempt >= maxRetries) throw new NearRpcError(method, `HTTP 429 after ${maxRetries} retries`);
+      if (res === null || RETRY_STATUS.has(res.status)) {
+        if (attempt >= maxRetries) throw new NearRpcError(method, `${reason} after ${maxRetries} retries`);
         await sleep(1000 * 2 ** attempt);
         continue;
       }

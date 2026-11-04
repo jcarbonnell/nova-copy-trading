@@ -22,10 +22,10 @@ const relocated = src.replace(IMPORT, `from '${pathToFileURL(join(root, 'src/cor
 const MUTANTS = [
   // transport
   ['K1', 'no pacing', `if (wait > 0) await sleep(wait);`, ``],
-  ['K2', '429 not retried', `if (res.status === 429) {`, `if (false) {`],
+  ['K2', 'retryable statuses not retried', ` || RETRY_STATUS.has(res.status)`, ``],
   ['K3', 'one retry too many', `if (attempt >= maxRetries)`, `if (attempt > maxRetries)`],
   ['K4', 'no exponential backoff', `await sleep(1000 * 2 ** attempt);`, `await sleep(1000);`],
-  ['K5', 'transport failure not wrapped', `throw new NearRpcError(method, String((e as Error)?.message ?? e));`, `throw e;`],
+  ['K5', 'transport failure not retried', `if (res === null || RETRY_STATUS`, `if (res !== null && RETRY_STATUS`],
   ['K6', 'JSON-RPC error ignored', `if (body?.error) throw`, `if (false) throw`],
   ['K7', 'HTTP status ignored', `if (!res.ok) throw`, `if (false) throw`],
   ['K8', 'missing result accepted', `if (body?.result == null) throw`, `if (false) throw`],
@@ -49,6 +49,12 @@ const MUTANTS = [
   ['K23', 'not waited until final', `wait_until: 'FINAL'`, `wait_until: 'EXECUTED'`],
   ['K24', 'tx hash unchecked', `if (st?.transaction?.hash !== txHash) throw`, `if (false) throw`],
   ['K25', 'block hash unchecked', `if (b?.header?.hash !== blockHash) throw`, `if (false) throw`],
+  ['K26', 'gateway errors not retried', `new Set([429, 502, 503, 504])`, `new Set([429])`],
+  ['K27', 'HTTP 500 retried', `new Set([429, 502, 503, 504])`, `new Set([429, 500, 502, 503, 504])`],
+  ['K28', 'HTTP 400 retried', `new Set([429, 502, 503, 504])`, `new Set([400, 429, 502, 503, 504])`],
+  ['K29', 'the final error loses its reason', '`${reason} after ${maxRetries} retries`', '`after ${maxRetries} retries`'],
+  ['K30', 'a transport failure loses its message', `reason = String((e as Error)?.message ?? e);`, `reason = 'transport';`],
+  ['K31', 'the HTTP status is not the reason', 'reason = `HTTP ${res.status}`;', "reason = 'HTTP';"],
 ];
 
 const run = (modulePath) => spawnSync(TSX, [HARNESS], {

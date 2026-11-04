@@ -36,6 +36,7 @@
     "viewer": "tsx src/viewer/server.ts",
     "test:hostile": "tsx test/hostile-seller.test.ts && node test/mutate-hostile-seller.mjs",
     "hostile": "tsx src/demo/hostile-seller.ts",
+    "demo:live": "tsx src/demo/live.ts",
     "demo:mock": "tsx src/mock/demo.ts",
     "test": "npm run typecheck && npm run test:vendor && npm run test:payment && npm run test:chain && npm run test:journal && npm run test:pnl && npm run test:listing && npm run test:feed && npm run test:membership && npm run test:live && npm run test:ledger && npm run test:reader && npm run test:members && npm run test:writer && npm run test:builder && npm run test:service && npm run test:pending && npm run test:state && npm run test:script && npm run test:follower && npm run test:fstate && npm run test:mock && npm run test:demo && npm run test:viewer && npm run test:hostile"
   },
