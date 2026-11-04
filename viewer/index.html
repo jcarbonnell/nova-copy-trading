@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NOVA Copy-Trading viewer</title>
+<title>Confidential Copy-Trading</title>
 <style>
   :root {
     --bg: #0d1014; --panel: #151a21; --line: #232b35; --text: #e6eaef; --muted: #8b96a3; --faint: #5b6673;
@@ -13,6 +13,13 @@
   html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
   header { display: flex; align-items: center; gap: 16px; padding: 14px 22px; border-bottom: 1px solid var(--line); }
   header h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: .2px; }
+  header h1, header .mode, header .agents span, .controls button { white-space: nowrap; }
+  header .sub { font: 12px var(--mono); color: var(--muted); margin-top: 2px; }
+  header .agents { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+  header .agents b { color: var(--text); font-weight: 600; } header .agents code { font: 12px var(--mono); color: var(--faint); }
+  .layer { font: 10px var(--mono); padding: 0 6px; border-radius: 3px; margin-left: 6px; vertical-align: 1px; border: 1px solid; }
+  .layer.nova { color: #b69cff; border-color: #3d3166; } .layer.api { color: #7aa2ff; border-color: #263a66; } .layer.chain { color: #3fcf8e; border-color: #1d4a35; }
+  header .mode.live { color: var(--ok); border-color: #1d4a35; }
   header .mode { font: 12px var(--mono); color: var(--warn); border: 1px solid #5a4510; padding: 2px 8px; border-radius: 4px; }
   header .spacer { flex: 1; }
   header .clock { font: 13px var(--mono); color: var(--muted); }
@@ -68,8 +75,9 @@
 </head>
 <body>
 <header>
-  <h1>NOVA Copy-Trading</h1>
+  <div><h1>Confidential Copy-Trading for AI agents</h1><div class="sub">NEAR Intents Agent API · NOVA · NEAR mainnet</div></div>
   <span class="mode" id="mode" hidden>MOCK MODE</span>
+  <div class="agents" id="agents"></div>
   <span class="spacer"></span>
   <span class="clock" id="clock"></span>
   <div class="controls" id="controls">
@@ -257,8 +265,11 @@ function renderFeed(seen) {
   scroll.scrollTop = scroll.scrollHeight;   // the newest entry stays in view
 }
 
-function li(icon, cls, text, detail, at, link) {
-  const d = el('div', {}, el('div', { text }), detail ? el('div', { class: 'd', text: detail }) : null);
+const LAYERS = { nova: 'NOVA', api: 'Agent API', chain: 'NEAR mainnet' };
+function li(icon, cls, text, detail, at, link, layer) {
+  const head = el('div', { text });
+  if (layer) head.append(el('span', { class: `layer ${layer}`, text: LAYERS[layer] }));
+  const d = el('div', {}, head, detail ? el('div', { class: 'd', text: detail }) : null);
   if (link) d.append(el('a', { href: link, target: '_blank', rel: 'noopener noreferrer', text: 'view on nearblocks ↗' }));
   return el('li', {}, el('span', { class: cls, text: icon }), d, el('span', { class: 't', text: hhmm(at) }));
 }
@@ -266,25 +277,28 @@ function li(icon, cls, text, detail, at, link) {
 function renderCopies(seen) {
   const box = $('copies'); box.replaceChildren();
   for (const e of seen) {
-    if (e.kind === 'payment_refused_by_policy') box.append(li('⛔', 'i-bad', `Listing #99 refused: pays ${e.recipient}`, (e.codes ?? []).join(', '), e.at));
-    if (e.kind === 'copy_done') box.append(li('✓', 'i-ok', e.side === 'buy' ? `Copied buy: ${usdc(e.amount)} USDC → ${near(e.amountOut)} NEAR` : `Copied sell: ${near(e.amount)} NEAR → ${usdc(e.amountOut)} USDC`, 'simulated (dry quote)', e.at));
-    if (e.kind === 'copy_refused') box.append(li('⛔', 'i-warn', `Copy refused: ${e.side} ${e.side === 'buy' ? `${usdc(e.amount)} USDC` : `${near(e.amount)} NEAR`}`, (e.codes ?? []).join(', '), e.at));
+    if (e.kind === 'payment_refused_by_policy') box.append(li('⛔', 'i-bad', `Listing #99 refused: pays ${e.recipient}`, (e.codes ?? []).join(', '), e.at, null, 'api'));
+    if (e.kind === 'copy_done') box.append(li('✓', 'i-ok', e.side === 'buy' ? `Copied buy: ${usdc(e.amount)} USDC → ${near(e.amountOut)} NEAR` : `Copied sell: ${near(e.amount)} NEAR → ${usdc(e.amountOut)} USDC`, 'simulated (dry quote)', e.at, null, 'api'));
+    if (e.kind === 'copy_refused') box.append(li('⛔', 'i-warn', `Copy refused: ${e.side} ${e.side === 'buy' ? `${usdc(e.amount)} USDC` : `${near(e.amount)} NEAR`}`, (e.codes ?? []).join(', '), e.at, null, 'api'));
     if (e.kind === 'copy_skipped') box.append(li('·', 'i-info', 'Not copied', e.reason === 'stale' ? 'stale entry' : 'nothing left to sell', e.at));
-    if (e.kind === 'access_ended') box.append(li('■', 'i-info', 'Access ended: copying stopped', null, e.at));
+    if (e.kind === 'access_ended') box.append(li('■', 'i-info', 'Access ended: copying stopped', null, e.at, null, 'nova'));
   }
   if (!box.children.length) box.append(el('li', { class: 'empty', text: 'Nothing yet.' }));
+  box.scrollTop = box.scrollHeight;   // the newest copy stays in view
 }
 
 function renderLedger(seen) {
   const box = $('ledger'); box.replaceChildren();
   let entries = 0;
   const price = seen.find((e) => e.kind === 'listing_approved' && e.src === 'follower')?.price;
+  const seller = S.seller.listings[0]?.listing?.seller;
+  const sellerLink = S.mode !== 'mock' && seller ? `https://nearblocks.io/address/${encodeURIComponent(seller)}` : null;
   for (const e of seen) {
-    if (e.kind === 'entry_written') { entries++; box.append(li('▪', 'i-info', `Journal entry ${entries} recorded in NOVA`, `file hash ${short(e.fileHash, 16)}`, e.at)); }
-    if (e.kind === 'payment_settled' && e.src === 'follower') box.append(li('→', 'i-info', `Follower paid ${price ? usdc(price) : '?'} USDC for the listing`, `intent ${short(e.intentHash, 16)}`, e.at));
-    if (e.kind === 'payment_verified') box.append(li('✓', 'i-ok', 'Seller verified the payment on chain', `payer ${short(e.payer, 12)} · tx ${short(e.txHash, 12)}`, e.at, `https://nearblocks.io/txns/${encodeURIComponent(e.txHash)}`));
-    if (e.kind === 'member_admitted') box.append(li('✓', 'i-ok', 'Seller admitted the payer to its group', `until ${hhmm(e.expiresAtMs)}`, e.at));
-    if (e.kind === 'member_revoked') box.append(li('■', 'i-warn', 'Period over: seller revoked the follower', `key rotation ${e.rotation ?? '?'}`, e.at));
+    if (e.kind === 'entry_written') { entries++; box.append(li('▪', 'i-info', `Journal entry ${entries} recorded`, `trans_id ${short(e.transId, 16)} · file hash ${short(e.fileHash, 16)}`, e.at, sellerLink, 'nova')); }
+    if (e.kind === 'payment_settled' && e.src === 'follower') box.append(li('→', 'i-info', `Follower paid ${price ? usdc(price) : '?'} USDC for the listing`, `intent ${short(e.intentHash, 16)}`, e.at, null, 'api'));
+    if (e.kind === 'payment_verified') box.append(li('✓', 'i-ok', 'Seller verified the payment on chain', `payer ${short(e.payer, 12)} · tx ${short(e.txHash, 12)}`, e.at, `https://nearblocks.io/txns/${encodeURIComponent(e.txHash)}`, 'chain'));
+    if (e.kind === 'member_admitted') box.append(li('✓', 'i-ok', 'Seller admitted the payer to its group', `until ${hhmm(e.expiresAtMs)}`, e.at, sellerLink, 'nova'));
+    if (e.kind === 'member_revoked') box.append(li('■', 'i-warn', 'Period over: seller revoked the follower', `key rotation ${e.rotation ?? '?'}`, e.at, sellerLink, 'nova'));
   }
   box.replaceChildren(...[...box.children].reverse());   // newest first
   if (!box.children.length) box.append(el('li', { class: 'empty', text: 'Nothing yet.' }));
@@ -306,16 +320,25 @@ function renderCard(seen) {
   }
   list.append(el('li', { text: `${n('copy_done')} copies within the follower's limits; ${n('copy_refused') + n('payment_refused_by_policy')} refused by its owner's policy.` }));
   if (n('member_revoked')) list.append(el('li', { text: 'Access ended on time: the seller revoked the follower and the group key rotated.' }));
-  $('card-note').textContent = S.mode === 'mock' ? 'MOCK MODE: synthetic prices; in-memory NOVA and Agent API; the payment is the real recorded 57r1 payment, replayed.' : 'Simulated trades (H5); real NOVA records.';
+  list.append(el('li', { text: 'Toward an agent economy: any agent can list a confidential stream, any agent can verify it before and after paying, and each acts only within a policy its owner signed.' }));
+  list.append(el('li', { text: 'Next: contract escrow, so the buyer no longer trusts the seller to admit it.' }));
+  $('card-note').textContent = S.mode === 'mock' ? 'MOCK MODE: synthetic prices; in-memory NOVA and Agent API; the payment is the real recorded 57r1 payment, replayed.' : 'Trade contents are simulated; the files, the payment, the admission and the revocation are real NEAR mainnet transactions.';
 }
 
 function render() {
   if (!S) return;
   const seen = upTo();
-  $('mode').hidden = S.mode !== 'mock';
+  $('mode').hidden = false;
+  $('mode').className = S.mode === 'mock' ? 'mode' : 'mode live';
+  $('mode').textContent = S.mode === 'mock' ? 'MOCK MODE' : 'LIVE · NEAR mainnet';
   $('footnote').textContent = S.mode === 'mock'
     ? 'MOCK MODE: in-memory NOVA, Agent API and chain; synthetic prices; the payment is the real recorded 57r1 payment, replayed. Simulated trades.'
-    : 'Simulated trades (H5), real NOVA records.';
+    : 'Trade contents are simulated; the files, the payment, the admission and the revocation are real NEAR mainnet transactions.';
+  const sellerAcct = S.seller.listings[0]?.listing?.seller;
+  const followerAcct = seen.find((e) => e.kind === 'payment_settled')?.payer;
+  const ag = $('agents'); ag.replaceChildren();
+  if (sellerAcct) ag.append(el('span', {}, el('b', { text: 'Seller agent ' }), el('code', { text: short(sellerAcct, 10) })));
+  if (followerAcct) ag.append(el('span', {}, el('b', { text: 'Follower agent ' }), el('code', { text: short(followerAcct, 10) })));
   $('errors').textContent = S.errors.length ? `state: ${S.errors.join(' · ')}` : '';
   const [n, text] = caption(seen);
   $('caption').replaceChildren(n ? el('span', { class: 'n', text: `BEAT ${n}` }) : '', text);
