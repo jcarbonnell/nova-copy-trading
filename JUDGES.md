@@ -89,6 +89,6 @@ Robustness (not claims of their own, but what keeps C2–C5 true across crashes 
 | Q-001/Q-003/Q-004 code written in the window | first commit 2026-11-02; README › What existed before this hackathon |
 | Q-005 libraries and own earlier work (baseline) | README › What existed before this hackathon |
 | Q-007 mainnet with tiny amounts and dry quotes | one 0.10 USDC payment; every trade a dry quote |
-| Q-012 reproducible locally, with a video | sections 1 and 2 above; the video link in the README |
+| Q-012 reproducible locally, with a video | sections 1 and 2 above; the demo video: [x.com/jcarbonnell/status/2118274901693837481](https://x.com/jcarbonnell/status/2118274901693837481) |
 | Q-014 license | MIT, `LICENSE` |
 | No secrets in the repository | credentials live in each agent's own directory outside the repo (`.env.example`, `.gitignore`) |

@@ -17,7 +17,7 @@ members.
 
 Built at NEAR HACKATHON (November 2026). Tracks: Agent Economy (`agents`), Privacy & Private AI
 (`privacy`), AI Security & Defense (`security`). Demo video (2:37, a replay of the recorded mainnet run):
-<X post link>. For automated reviewers: [JUDGES.md](JUDGES.md) maps every claim to its code, its test and
+[x.com/jcarbonnell/status/2118274901693837481](https://x.com/jcarbonnell/status/2118274901693837481). For automated reviewers: [JUDGES.md](JUDGES.md) maps every claim to its code, its test and
 the command that runs it.
 
 ## The idea: sell a viewing key, not your data
@@ -88,6 +88,8 @@ owner-signed policies: [docs/live-setup.md](docs/live-setup.md). The directories
 
 Recorded on NEAR mainnet on 2026-11-04. Full terminal output: [docs/proof/2026-11-04/demo-live.txt](docs/proof/2026-11-04/demo-live.txt);
 the agents' event logs and listings, replayable in the viewer: [docs/proof/2026-11-04/](docs/proof/2026-11-04/).
+
+![Terminal output of the recorded mainnet run: preflight 12/12, then all six beats](docs/proof/2026-11-04/terminal.png)
 
 | What | Value |
 |---|---|
