@@ -72,8 +72,8 @@ if (conn.accountId !== FOLLOWER_ACCOUNT) die(`the agent's NEAR account is ${conn
 // The payment goes the way the 57r1 payment did (a plain withdrawal: the route verify-payment.ts was built on);
 // copies are confidential quotes, as an H6 swap would be.
 const agent: FollowerAgent = {
-  previewWithdraw: (req) => api.withdraw(agentId, { ...req, dry: true } as SdkWithdraw & { dry: true }, { idempotencyKey: `dry-${createIdempotencyKey()}` }),
-  withdraw: (req, key) => api.withdraw(agentId, req as SdkWithdraw, { idempotencyKey: key }),
+  previewWithdraw: (req) => api.withdraw(agentId, { ...req, confidential: false, dry: true } as SdkWithdraw & { dry: true }, { idempotencyKey: `dry-${createIdempotencyKey()}` }),
+  withdraw: (req, key) => api.withdraw(agentId, { ...req, confidential: false } as SdkWithdraw, { idempotencyKey: key }),
   status: (c) => api.getStatus(c, { waitMs: 10_000 }),
   quoteSwap: (req) => api.swap(agentId, { ...req, confidential: true, dry: true } as SwapRequest & { dry: true }),
 };

@@ -115,8 +115,8 @@ const followerApi = new AgentApi({ apiKey: fc.apiKey, baseUrl }).forGrant(fc.gra
 const chain = createNearChain({ rpcUrl: archivalUrl, minIntervalMs: pace, maxRetries: 10 });
 
 const followerAgent: FollowerAgent = {
-  previewWithdraw: (req) => followerApi.withdraw(fc.agentId, { ...req, dry: true } as SdkWithdraw & { dry: true }, { idempotencyKey: `dry-${createIdempotencyKey()}` }),
-  withdraw: (req, key) => followerApi.withdraw(fc.agentId, req as SdkWithdraw, { idempotencyKey: key }),
+  previewWithdraw: (req) => followerApi.withdraw(fc.agentId, { ...req, confidential: false, dry: true } as SdkWithdraw & { dry: true }, { idempotencyKey: `dry-${createIdempotencyKey()}` }),
+  withdraw: (req, key) => followerApi.withdraw(fc.agentId, { ...req, confidential: false } as SdkWithdraw, { idempotencyKey: key }),
   status: (c) => followerApi.getStatus(c, { waitMs: 10_000 }),
   quoteSwap: (req) => followerApi.swap(fc.agentId, { ...req, confidential: true, dry: true } as SwapRequest & { dry: true }),
 };
